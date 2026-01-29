@@ -7,15 +7,17 @@ using System.Threading.Tasks;
 using Artify.Models;
 using System.ComponentModel.DataAnnotations;
 
-namespace Artify.DTO_klase.KategorijeDTO
+
+namespace Artify.DTO_klase.NotifikacijaDTO
 {
-    public class AzuriranjeKategorijeDTO
+    public class AzurirajNotifikacijuDTO
     {
         [Required]
-        public int KategorijaId { get; set; }
+        public int NotifikacijaId { get; set; }
 
-        [Required]
-        [StringLength(100)]
-        public string Naziv { get; set; }
+        [StringLength(300)]
+        public string? Poruka { get; set; }
+
+        public NotifikacijaTip? Tip { get; set; }
     }
 }

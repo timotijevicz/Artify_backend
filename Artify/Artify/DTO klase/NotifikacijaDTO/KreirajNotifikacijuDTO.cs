@@ -7,18 +7,21 @@ using System.Threading.Tasks;
 using Artify.Models;
 using System.ComponentModel.DataAnnotations;
 
-namespace Artify.Models
+
+namespace Artify.DTO_klase.NotifikacijaDTO
 {
-    public class Favoriti
+    public class KreirajNotifikacijuDTO
     {
-        [Key]
-        public int FavoritiId { get; set; }
         [Required]
         public string KorisnikId { get; set; }
+
         [Required]
-        public int UmetnickoDeloId { get; set; }
-        [Required]
-        public virtual Korisnik? Korisnik { get; set; }
-        public virtual UmetnickoDelo UmetnickoDelo { get; set; }
+        [StringLength(300)]
+        public string? Poruka { get; set; }
+
+        public NotifikacijaTip Tip { get; set; } = NotifikacijaTip.Obavestenje;
+
+        public int? PorudzbinaId { get; set; }
+        public int? UmetnickoDeloId { get; set; }
     }
 }

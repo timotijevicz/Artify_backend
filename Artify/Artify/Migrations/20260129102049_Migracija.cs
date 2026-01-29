@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace Artify.Migrations
 {
     /// <inheritdoc />
@@ -30,13 +32,10 @@ namespace Artify.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Ime = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Prezime = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    PotvrdaEmailaToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    DatumRegistracije = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    OsvezeniToken = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    VremeVazenjaOsvezenogTpkena = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ImeIPrezime = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     TokenZaResetovanjeLozinke = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    VremeIstekaTokenaZaReset = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DatumRegistracije = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -55,19 +54,6 @@ namespace Artify.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUsers", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Kategorija",
-                columns: table => new
-                {
-                    KategorijaId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Naziv = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Kategorija", x => x.KategorijaId);
                 });
 
             migrationBuilder.CreateTable(
@@ -177,69 +163,54 @@ namespace Artify.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Korpe",
+                name: "Notifikacije",
                 columns: table => new
                 {
-                    KorpaId = table.Column<int>(type: "int", nullable: false)
+                    NotifikacijaId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    KupacId = table.Column<string>(type: "nvarchar(450)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Korpe", x => x.KorpaId);
-                    table.ForeignKey(
-                        name: "FK_Korpe_AspNetUsers_KupacId",
-                        column: x => x.KupacId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Portfolio",
-                columns: table => new
-                {
-                    PortfolioId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Naziv = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Opis = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
-                    UmetnikId = table.Column<string>(type: "nvarchar(450)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Portfolio", x => x.PortfolioId);
-                    table.ForeignKey(
-                        name: "FK_Portfolio_AspNetUsers_UmetnikId",
-                        column: x => x.UmetnikId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Porudzbine",
-                columns: table => new
-                {
-                    PorudzbinaId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    KorisnikId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Poruka = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
+                    Tip = table.Column<int>(type: "int", nullable: false),
                     DatumKreiranja = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UkupnaCena = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    KorpaId = table.Column<int>(type: "int", nullable: false),
-                    KorpaId1 = table.Column<int>(type: "int", nullable: true)
+                    PorudzbinaId = table.Column<int>(type: "int", nullable: true),
+                    UmetnickoDeloId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Porudzbine", x => x.PorudzbinaId);
+                    table.PrimaryKey("PK_Notifikacije", x => x.NotifikacijaId);
                     table.ForeignKey(
-                        name: "FK_Porudzbine_Korpe_KorpaId",
-                        column: x => x.KorpaId,
-                        principalTable: "Korpe",
-                        principalColumn: "KorpaId",
+                        name: "FK_Notifikacije_AspNetUsers_KorisnikId",
+                        column: x => x.KorisnikId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Umetnici",
+                columns: table => new
+                {
+                    UmetnikId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    KorisnikId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Biografija = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Tehnika = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Stil = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Specijalizacija = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SlikaUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsApproved = table.Column<bool>(type: "bit", nullable: false),
+                    IsAvailable = table.Column<bool>(type: "bit", nullable: false),
+                    DatumKreiranja = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Umetnici", x => x.UmetnikId);
+                    table.ForeignKey(
+                        name: "FK_Umetnici_AspNetUsers_KorisnikId",
+                        column: x => x.KorisnikId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Porudzbine_Korpe_KorpaId1",
-                        column: x => x.KorpaId1,
-                        principalTable: "Korpe",
-                        principalColumn: "KorpaId");
                 });
 
             migrationBuilder.CreateTable(
@@ -250,43 +221,28 @@ namespace Artify.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Naziv = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Opis = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Cena = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Cena = table.Column<float>(type: "real", nullable: true),
                     Slika = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PocetnaCenaAukcije = table.Column<float>(type: "real", nullable: true),
+                    TrenutnaCenaAukcije = table.Column<float>(type: "real", nullable: true),
+                    AukcijaPocinje = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    AukcijaZavrsava = table.Column<DateTime>(type: "datetime2", nullable: true),
                     DatumPostavljanja = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Tehnika = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    KategorijaId = table.Column<int>(type: "int", nullable: true),
                     Stil = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Dimenzije = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    UmetnikId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    PortfolioId = table.Column<int>(type: "int", nullable: true),
-                    PorudzbinaId = table.Column<int>(type: "int", nullable: true)
+                    NaAukciji = table.Column<bool>(type: "bit", nullable: false),
+                    UmetnikId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UmetnickaDela", x => x.UmetnickoDeloId);
                     table.ForeignKey(
-                        name: "FK_UmetnickaDela_AspNetUsers_UmetnikId",
+                        name: "FK_UmetnickaDela_Umetnici_UmetnikId",
                         column: x => x.UmetnikId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_UmetnickaDela_Kategorija_KategorijaId",
-                        column: x => x.KategorijaId,
-                        principalTable: "Kategorija",
-                        principalColumn: "KategorijaId",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_UmetnickaDela_Portfolio_PortfolioId",
-                        column: x => x.PortfolioId,
-                        principalTable: "Portfolio",
-                        principalColumn: "PortfolioId");
-                    table.ForeignKey(
-                        name: "FK_UmetnickaDela_Porudzbine_PorudzbinaId",
-                        column: x => x.PorudzbinaId,
-                        principalTable: "Porudzbine",
-                        principalColumn: "PorudzbinaId");
+                        principalTable: "Umetnici",
+                        principalColumn: "UmetnikId");
                 });
 
             migrationBuilder.CreateTable(
@@ -295,17 +251,18 @@ namespace Artify.Migrations
                 {
                     FavoritiId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    KupacId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    KorisnikId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     UmetnickoDeloId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Favoriti", x => x.FavoritiId);
                     table.ForeignKey(
-                        name: "FK_Favoriti_AspNetUsers_KupacId",
-                        column: x => x.KupacId,
+                        name: "FK_Favoriti_AspNetUsers_KorisnikId",
+                        column: x => x.KorisnikId,
                         principalTable: "AspNetUsers",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Favoriti_UmetnickaDela_UmetnickoDeloId",
                         column: x => x.UmetnickoDeloId,
@@ -315,12 +272,39 @@ namespace Artify.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Porudzbine",
+                columns: table => new
+                {
+                    PorudzbinaId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DatumKreiranja = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CenaUTrenutkuKupovine = table.Column<float>(type: "real", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    KorisnikId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UmetnickoDeloId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Porudzbine", x => x.PorudzbinaId);
+                    table.ForeignKey(
+                        name: "FK_Porudzbine_AspNetUsers_KorisnikId",
+                        column: x => x.KorisnikId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Porudzbine_UmetnickaDela_UmetnickoDeloId",
+                        column: x => x.UmetnickoDeloId,
+                        principalTable: "UmetnickaDela",
+                        principalColumn: "UmetnickoDeloId");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Recenzije",
                 columns: table => new
                 {
                     RecenzijaId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    KupacId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    KorisnikId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     UmetnickoDeloId = table.Column<int>(type: "int", nullable: false),
                     Ocena = table.Column<int>(type: "int", nullable: false),
                     Komentar = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false)
@@ -329,8 +313,8 @@ namespace Artify.Migrations
                 {
                     table.PrimaryKey("PK_Recenzije", x => x.RecenzijaId);
                     table.ForeignKey(
-                        name: "FK_Recenzije_AspNetUsers_KupacId",
-                        column: x => x.KupacId,
+                        name: "FK_Recenzije_AspNetUsers_KorisnikId",
+                        column: x => x.KorisnikId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id");
                     table.ForeignKey(
@@ -339,6 +323,16 @@ namespace Artify.Migrations
                         principalTable: "UmetnickaDela",
                         principalColumn: "UmetnickoDeloId",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.InsertData(
+                table: "AspNetRoles",
+                columns: new[] { "Id", "ConcurrencyStamp", "Name", "NormalizedName" },
+                values: new object[,]
+                {
+                    { "1", null, "Admin", "ADMIN" },
+                    { "2", null, "Umetnik", "UMETNIK" },
+                    { "3", null, "Kupac", "KUPAC" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -381,9 +375,9 @@ namespace Artify.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Favoriti_KupacId",
+                name: "IX_Favoriti_KorisnikId",
                 table: "Favoriti",
-                column: "KupacId");
+                column: "KorisnikId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Favoriti_UmetnickoDeloId",
@@ -391,29 +385,24 @@ namespace Artify.Migrations
                 column: "UmetnickoDeloId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Korpe_KupacId",
-                table: "Korpe",
-                column: "KupacId");
+                name: "IX_Notifikacije_KorisnikId",
+                table: "Notifikacije",
+                column: "KorisnikId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Portfolio_UmetnikId",
-                table: "Portfolio",
-                column: "UmetnikId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Porudzbine_KorpaId",
+                name: "IX_Porudzbine_KorisnikId",
                 table: "Porudzbine",
-                column: "KorpaId");
+                column: "KorisnikId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Porudzbine_KorpaId1",
+                name: "IX_Porudzbine_UmetnickoDeloId",
                 table: "Porudzbine",
-                column: "KorpaId1");
+                column: "UmetnickoDeloId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Recenzije_KupacId",
+                name: "IX_Recenzije_KorisnikId",
                 table: "Recenzije",
-                column: "KupacId");
+                column: "KorisnikId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Recenzije_UmetnickoDeloId",
@@ -421,19 +410,9 @@ namespace Artify.Migrations
                 column: "UmetnickoDeloId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_UmetnickaDela_KategorijaId",
-                table: "UmetnickaDela",
-                column: "KategorijaId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_UmetnickaDela_PortfolioId",
-                table: "UmetnickaDela",
-                column: "PortfolioId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_UmetnickaDela_PorudzbinaId",
-                table: "UmetnickaDela",
-                column: "PorudzbinaId");
+                name: "IX_Umetnici_KorisnikId",
+                table: "Umetnici",
+                column: "KorisnikId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UmetnickaDela_UmetnikId",
@@ -463,6 +442,12 @@ namespace Artify.Migrations
                 name: "Favoriti");
 
             migrationBuilder.DropTable(
+                name: "Notifikacije");
+
+            migrationBuilder.DropTable(
+                name: "Porudzbine");
+
+            migrationBuilder.DropTable(
                 name: "Recenzije");
 
             migrationBuilder.DropTable(
@@ -472,16 +457,7 @@ namespace Artify.Migrations
                 name: "UmetnickaDela");
 
             migrationBuilder.DropTable(
-                name: "Kategorija");
-
-            migrationBuilder.DropTable(
-                name: "Portfolio");
-
-            migrationBuilder.DropTable(
-                name: "Porudzbine");
-
-            migrationBuilder.DropTable(
-                name: "Korpe");
+                name: "Umetnici");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");

@@ -1,13 +1,13 @@
 ﻿using Artify.Interfaces;
 using Artify.Models;
+using Artify.Data;
+using Artify.DTO_klase.UmetnickoDeloDTO;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Artify.Data;
-using Microsoft.EntityFrameworkCore;
-using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
-using Artify.DTO_klase.UmetnickoDeloDTO;
+
 
 namespace Artify.Repositories
 {
@@ -19,69 +19,144 @@ namespace Artify.Repositories
         {
             _context = context;
         }
+
+        // ============================
+        // GET ALL
+        // ============================
         public async Task<IEnumerable<UmetnickoDelo>> GetAllArtworksAsync()
         {
-            return await _context.UmetnickaDela.Include(d => d.Kategorija).Include(d => d.Umetnik).ToListAsync();
+            return await _context.UmetnickaDela
+                .Include(d => d.Umetnik)
+                .ToListAsync();
         }
 
-        public async Task<UmetnickoDelo> GetArtworkByIdAsync(int UmetnickoDeloId)
+        // ============================
+        // GET BY ID
+        // ============================
+        public async Task<UmetnickoDelo> GetArtworkByIdAsync(int umetnickoDeloId)
         {
-            return await _context.UmetnickaDela.Include(d => d.Kategorija).Include(d => d.Umetnik)
-                                               .FirstOrDefaultAsync(d => d.UmetnickoDeloId == UmetnickoDeloId);
+            return await _context.UmetnickaDela
+                .Include(d => d.Umetnik)
+                .FirstOrDefaultAsync(d => d.UmetnickoDeloId == umetnickoDeloId);
         }
 
-        public async Task<UmetnickoDelo> AddArtworkAsync(KreirajUmetnickoDeloDTO NovoDeloDTO)
+        // ============================
+        // ADD FIXED PRICE ARTWORK
+        // ============================
+        public async Task<UmetnickoDelo> AddArtworkAsync(KreirajUmetnickoDeloDTO dto)
         {
+            // VALIDACIJA – FIKSNA PRODAJA
+            if (dto.Cena <= 0)
+                throw new Exception("Cena mora biti veća od 0.");
+
             var novoDelo = new UmetnickoDelo
             {
-                Naziv = NovoDeloDTO.Naziv,
-                Opis = NovoDeloDTO.Opis,
-                Cena = NovoDeloDTO.Cena,
-                Slika = NovoDeloDTO.Slika,
-                Tehnika = NovoDeloDTO.Tehnika,
-                KategorijaId = NovoDeloDTO.KategorijaId,
-                Stil = NovoDeloDTO.Stil,
-                Dimenzije = NovoDeloDTO.Dimenzije,
-                UmetnikId = NovoDeloDTO.UmetnikId,
-                Status = UmetnickoDeloStatus.Dostupno
+                Naziv = dto.Naziv,
+                Opis = dto.Opis,
+                Slika = dto.Slika,
+                Tehnika = dto.Tehnika,
+                Stil = dto.Stil,
+                Dimenzije = dto.Dimenzije,
+                UmetnikId = dto.UmetnikId,
+
+                Cena = dto.Cena,
+                NaAukciji = false,
+
+                PocetnaCenaAukcije = null,
+                TrenutnaCenaAukcije = null,
+                AukcijaPocinje = null,
+                AukcijaZavrsava = null,
+
+                Status = UmetnickoDeloStatus.Dostupno,
+                DatumPostavljanja = DateTime.UtcNow
             };
 
             _context.UmetnickaDela.Add(novoDelo);
             await _context.SaveChangesAsync();
+
             return novoDelo;
         }
 
-        public async Task<bool> UpdateArtworkAsync(AzuriranjeUmetnickogDelaDTO IzmenjenoDeloDTO)
+        // ============================
+        // ADD AUCTION ARTWORK
+        // ============================
+        public async Task<UmetnickoDelo> AddAuctionArtworkAsync(KreirajDeloZaAukcijuDTO dto)
         {
-            var delo = await _context.UmetnickaDela.FindAsync(IzmenjenoDeloDTO.UmetnickoDeloId);
+            // VALIDACIJA – AUKCIJA
+            if (dto.PocetnaCenaAukcije <= 0)
+                throw new Exception("Početna cena aukcije mora biti veća od 0.");
+
+            if (dto.AukcijaZavrsava <= DateTime.UtcNow)
+                throw new Exception("Datum završetka aukcije mora biti u budućnosti.");
+
+            var novoDelo = new UmetnickoDelo
+            {
+                Naziv = dto.Naziv,
+                Opis = dto.Opis,
+                Slika = dto.Slika,
+                Tehnika = dto.Tehnika,
+                Stil = dto.Stil,
+                Dimenzije = dto.Dimenzije,
+                UmetnikId = dto.UmetnikId,
+
+                Cena = null,
+                NaAukciji = true,
+
+                PocetnaCenaAukcije = dto.PocetnaCenaAukcije,
+                TrenutnaCenaAukcije = dto.PocetnaCenaAukcije,
+
+                AukcijaPocinje = DateTime.UtcNow,   // ⭐ AUTOMATSKI
+                AukcijaZavrsava = dto.AukcijaZavrsava,
+
+                Status = UmetnickoDeloStatus.Dostupno,
+                DatumPostavljanja = DateTime.UtcNow
+            };
+
+            _context.UmetnickaDela.Add(novoDelo);
+            await _context.SaveChangesAsync();
+
+            return novoDelo;
+        }
+
+        // ============================
+        // UPDATE
+        // ============================
+        public async Task<bool> UpdateArtworkAsync(AzuriranjeUmetnickogDelaDTO dto)
+        {
+            var delo = await _context.UmetnickaDela.FindAsync(dto.UmetnickoDeloId);
             if (delo == null) return false;
 
-            if (!string.IsNullOrEmpty(IzmenjenoDeloDTO.Naziv))
-                delo.Naziv = IzmenjenoDeloDTO.Naziv;
+            if (!string.IsNullOrWhiteSpace(dto.Naziv))
+                delo.Naziv = dto.Naziv;
 
-            if (!string.IsNullOrEmpty(IzmenjenoDeloDTO.Opis))
-                delo.Opis = IzmenjenoDeloDTO.Opis;
+            if (!string.IsNullOrWhiteSpace(dto.Opis))
+                delo.Opis = dto.Opis;
 
-            if (IzmenjenoDeloDTO.Cena.HasValue)
-                delo.Cena = IzmenjenoDeloDTO.Cena.Value;
+            if (dto.Cena.HasValue)
+            {
+                if (delo.NaAukciji)
+                    throw new Exception("Nije moguće menjati cenu dela koje je na aukciji.");
 
-            if (!string.IsNullOrEmpty(IzmenjenoDeloDTO.Slika))
-                delo.Slika = IzmenjenoDeloDTO.Slika;
+                if (dto.Cena.Value <= 0)
+                    throw new Exception("Cena mora biti veća od 0.");
 
-            if (!string.IsNullOrEmpty(IzmenjenoDeloDTO.Tehnika))
-                delo.Tehnika = IzmenjenoDeloDTO.Tehnika;
+                delo.Cena = dto.Cena.Value;
+            }
 
-            if (IzmenjenoDeloDTO.KategorijaId.HasValue)
-                delo.KategorijaId = IzmenjenoDeloDTO.KategorijaId;
+            if (!string.IsNullOrWhiteSpace(dto.Slika))
+                delo.Slika = dto.Slika;
 
-            if (!string.IsNullOrEmpty(IzmenjenoDeloDTO.Stil))
-                delo.Stil = IzmenjenoDeloDTO.Stil;
+            if (!string.IsNullOrWhiteSpace(dto.Tehnika))
+                delo.Tehnika = dto.Tehnika;
 
-            if (!string.IsNullOrEmpty(IzmenjenoDeloDTO.Dimenzije))
-                delo.Dimenzije = IzmenjenoDeloDTO.Dimenzije;
+            if (!string.IsNullOrWhiteSpace(dto.Stil))
+                delo.Stil = dto.Stil;
 
-            if (IzmenjenoDeloDTO.Status.HasValue)
-                delo.Status = IzmenjenoDeloDTO.Status.Value;
+            if (!string.IsNullOrWhiteSpace(dto.Dimenzije))
+                delo.Dimenzije = dto.Dimenzije;
+
+            if (dto.Status.HasValue)
+                delo.Status = dto.Status.Value;
 
             await _context.SaveChangesAsync();
             return true;
@@ -97,25 +172,18 @@ namespace Artify.Repositories
             return true;
         }
 
-        public async Task<IEnumerable<UmetnickoDelo>> GetArtworksByCategoryAsync(int KategorijaId)
+        public async Task<IEnumerable<UmetnickoDelo>> GetArtworksByArtistAsync(int umetnikId)
         {
-            return await _context.UmetnickaDela.Where(d => d.KategorijaId == KategorijaId)
-                                               .Include(d => d.Kategorija)
-                                               .ToListAsync();
-        }
-
-        public async Task<IEnumerable<UmetnickoDelo>> GetArtworksByArtistAsync(string UmetnikId)
-        {
-            return await _context.UmetnickaDela.Where(d => d.UmetnikId == UmetnikId)
-                                               .Include(d => d.Umetnik)
-                                               .ToListAsync();
+            return await _context.UmetnickaDela
+                .Where(d => d.UmetnikId == umetnikId)
+                .Include(d => d.Umetnik)
+                .ToListAsync();
         }
 
         public async Task<IEnumerable<UmetnickoDelo>> SearchArtworksAsync(string keyword)
         {
             return await _context.UmetnickaDela
                 .Where(d => d.Naziv.Contains(keyword) || d.Opis.Contains(keyword))
-                .Include(d => d.Kategorija)
                 .Include(d => d.Umetnik)
                 .ToListAsync();
         }

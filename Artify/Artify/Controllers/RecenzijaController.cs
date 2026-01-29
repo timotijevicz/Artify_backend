@@ -24,7 +24,7 @@ namespace Artify.Controllers
         }
 
         // GET: api/Recenzija
-        [HttpGet]
+        [HttpGet("VracaSveRecenzije")]
         public async Task<IActionResult> GetSveRecenzije()
         {
             var recenzije = await _recenzijaService.GetSveRecenzijeAsync();
@@ -32,7 +32,7 @@ namespace Artify.Controllers
         }
 
         // GET: api/Recenzija/{id}
-        [HttpGet("{RecenzijaId}")]
+        [HttpGet("RecenzijaPoID/{RecenzijaId}")]
         public async Task<IActionResult> GetRecenzijaById(int RecenzijaId)
         {
             var recenzija = await _recenzijaService.GetRecenzijaByIdAsync(RecenzijaId);
@@ -44,7 +44,7 @@ namespace Artify.Controllers
         }
 
         // GET: api/Recenzija/UmetnickoDelo/{umetnickoDeloId}
-        [HttpGet("UmetnickoDelo/{umetnickoDeloId}")]
+        [HttpGet("RecenzijaZaUmetnickoDelo/{umetnickoDeloId}")]
         public async Task<IActionResult> GetRecenzijeZaUmetnickoDelo(int umetnickoDeloId)
         {
             var recenzije = await _recenzijaService.GetRecenzijeZaUmetnickoDeloAsync(umetnickoDeloId);
@@ -52,7 +52,7 @@ namespace Artify.Controllers
         }
 
         // POST: api/Recenzija
-        [HttpPost]
+        [HttpPost("KreiranjeRecenzije")]
         public async Task<IActionResult> KreirajRecenziju([FromBody] KreirajRecenzijuDTO novaRecenzijaDTO)
         {
             if (!ModelState.IsValid)
@@ -65,7 +65,7 @@ namespace Artify.Controllers
         }
 
         // PUT: api/Recenzija/{id}
-        [HttpPut("{RecenzijaId}")]
+        [HttpPut("AzuriranjeRecenzijePoID/{RecenzijaId}")]
         public async Task<IActionResult> AzurirajRecenziju(int RecenzijaId, [FromBody] AzurirajRecenzijuDTO izmenjenaRecenzijaDTO)
         {
             if (!ModelState.IsValid)
@@ -90,7 +90,7 @@ namespace Artify.Controllers
         }
 
         // DELETE: api/Recenzija/{id}
-        [HttpDelete("{RecenzijaId}")]
+        [HttpDelete("BrisanjeRecenzije/{RecenzijaId}")]
         public async Task<IActionResult> ObrisiRecenziju(int RecenzijaId)
         {
             var uspesnoObrisana = await _recenzijaService.ObrisiRecenzijuAsync(RecenzijaId);

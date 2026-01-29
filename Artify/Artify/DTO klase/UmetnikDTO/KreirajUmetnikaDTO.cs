@@ -7,18 +7,19 @@ using System.Threading.Tasks;
 using Artify.Models;
 using System.ComponentModel.DataAnnotations;
 
-namespace Artify.Models
+
+namespace Artify.DTO_klase.UmetnikDTO
 {
-    public class Favoriti
+    public class KreirajUmetnikaDTO
     {
-        [Key]
-        public int FavoritiId { get; set; }
         [Required]
         public string KorisnikId { get; set; }
-        [Required]
-        public int UmetnickoDeloId { get; set; }
-        [Required]
-        public virtual Korisnik? Korisnik { get; set; }
-        public virtual UmetnickoDelo UmetnickoDelo { get; set; }
+
+        [StringLength(500)]
+        public string? Biografija { get; set; }
+        public string? Tehnika { get; set; }
+        public string? Stil { get; set; }
+        public string? Specijalizacija { get; set; }
+        public string? SlikaUrl { get; set; }
     }
 }

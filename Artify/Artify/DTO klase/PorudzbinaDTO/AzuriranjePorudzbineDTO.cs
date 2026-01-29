@@ -13,11 +13,9 @@ namespace Artify.DTO_klase.PorudzbinaDTO
     public class AzuriranjePorudzbineDTO
     {
         [Required]
-        public int PorudzbinaId { get; set; } // ID porudžbine koja se menja
+        public int PorudzbinaId { get; set; }
+
         [Required]
-        public decimal? NovaUkupnaCena { get; set; } // Opcionalno ažuriranje cene
-        [Required]
-        public PorudzbinaStatus? NoviStatus { get; set; } // Opcionalno ažuriranje statusa porudžbine
-        public List<int>? NovaKupljenaDelaId { get; set; } // Opcionalno ažuriranje umetničkih dela
+        public PorudzbinaStatus NoviStatus { get; set; }
     }
 }

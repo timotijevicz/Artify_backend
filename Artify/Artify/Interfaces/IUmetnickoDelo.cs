@@ -14,8 +14,7 @@ namespace Artify.Interfaces
         Task<UmetnickoDelo> AddArtworkAsync(KreirajUmetnickoDeloDTO NovoDelo);
         Task<bool> UpdateArtworkAsync(AzuriranjeUmetnickogDelaDTO IzmenjenoDelo);
         Task<bool> DeleteArtworkAsync(int id);
-        Task<IEnumerable<UmetnickoDelo>> GetArtworksByCategoryAsync(int KategorijaId);
-        Task<IEnumerable<UmetnickoDelo>> GetArtworksByArtistAsync(string UmetnikId);
+        Task<IEnumerable<UmetnickoDelo>> GetArtworksByArtistAsync(int UmetnikId);
         Task<IEnumerable<UmetnickoDelo>> SearchArtworksAsync(string keyword);
     }
 }

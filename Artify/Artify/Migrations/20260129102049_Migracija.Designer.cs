@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Artify.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250118195641_Migracija")]
+    [Migration("20260129102049_Migracija")]
     partial class Migracija
     {
         /// <inheritdoc />
@@ -33,7 +33,7 @@ namespace Artify.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FavoritiId"));
 
-                    b.Property<string>("KupacId")
+                    b.Property<string>("KorisnikId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
@@ -42,29 +42,11 @@ namespace Artify.Migrations
 
                     b.HasKey("FavoritiId");
 
-                    b.HasIndex("KupacId");
+                    b.HasIndex("KorisnikId");
 
                     b.HasIndex("UmetnickoDeloId");
 
                     b.ToTable("Favoriti");
-                });
-
-            modelBuilder.Entity("Artify.Models.Kategorija", b =>
-                {
-                    b.Property<int>("KategorijaId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("KategorijaId"));
-
-                    b.Property<string>("Naziv")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("KategorijaId");
-
-                    b.ToTable("Kategorija");
                 });
 
             modelBuilder.Entity("Artify.Models.Korisnik", b =>
@@ -79,7 +61,7 @@ namespace Artify.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("DatumRegistracije")
+                    b.Property<DateTime>("DatumRegistracije")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
@@ -89,7 +71,8 @@ namespace Artify.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Ime")
+                    b.Property<string>("ImeIPrezime")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("LockoutEnabled")
@@ -106,10 +89,6 @@ namespace Artify.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<string>("OsvezeniToken")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
@@ -118,12 +97,6 @@ namespace Artify.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
-
-                    b.Property<string>("PotvrdaEmailaToken")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Prezime")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
@@ -138,7 +111,7 @@ namespace Artify.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<DateTime>("VremeVazenjaOsvezenogTpkena")
+                    b.Property<DateTime?>("VremeIstekaTokenaZaReset")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
@@ -154,51 +127,40 @@ namespace Artify.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Artify.Models.Korpa", b =>
+            modelBuilder.Entity("Artify.Models.Notifikacija", b =>
                 {
-                    b.Property<int>("KorpaId")
+                    b.Property<int>("NotifikacijaId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("KorpaId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NotifikacijaId"));
 
-                    b.Property<string>("KupacId")
+                    b.Property<DateTime>("DatumKreiranja")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("KorisnikId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.HasKey("KorpaId");
-
-                    b.HasIndex("KupacId");
-
-                    b.ToTable("Korpe");
-                });
-
-            modelBuilder.Entity("Artify.Models.Portfolio", b =>
-                {
-                    b.Property<int>("PortfolioId")
-                        .ValueGeneratedOnAdd()
+                    b.Property<int?>("PorudzbinaId")
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PortfolioId"));
-
-                    b.Property<string>("Naziv")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Opis")
+                    b.Property<string>("Poruka")
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
-                    b.Property<string>("UmetnikId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("Tip")
+                        .HasColumnType("int");
 
-                    b.HasKey("PortfolioId");
+                    b.Property<int?>("UmetnickoDeloId")
+                        .HasColumnType("int");
 
-                    b.HasIndex("UmetnikId");
+                    b.HasKey("NotifikacijaId");
 
-                    b.ToTable("Portfolio");
+                    b.HasIndex("KorisnikId");
+
+                    b.ToTable("Notifikacije");
                 });
 
             modelBuilder.Entity("Artify.Models.Porudzbina", b =>
@@ -209,26 +171,27 @@ namespace Artify.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PorudzbinaId"));
 
+                    b.Property<float>("CenaUTrenutkuKupovine")
+                        .HasColumnType("real");
+
                     b.Property<DateTime>("DatumKreiranja")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("KorpaId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("KorpaId1")
-                        .HasColumnType("int");
+                    b.Property<string>("KorisnikId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("UkupnaCena")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<int>("UmetnickoDeloId")
+                        .HasColumnType("int");
 
                     b.HasKey("PorudzbinaId");
 
-                    b.HasIndex("KorpaId");
+                    b.HasIndex("KorisnikId");
 
-                    b.HasIndex("KorpaId1");
+                    b.HasIndex("UmetnickoDeloId");
 
                     b.ToTable("Porudzbine");
                 });
@@ -246,7 +209,7 @@ namespace Artify.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("KupacId")
+                    b.Property<string>("KorisnikId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
@@ -258,7 +221,7 @@ namespace Artify.Migrations
 
                     b.HasKey("RecenzijaId");
 
-                    b.HasIndex("KupacId");
+                    b.HasIndex("KorisnikId");
 
                     b.HasIndex("UmetnickoDeloId");
 
@@ -273,8 +236,14 @@ namespace Artify.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UmetnickoDeloId"));
 
-                    b.Property<decimal>("Cena")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<DateTime?>("AukcijaPocinje")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("AukcijaZavrsava")
+                        .HasColumnType("datetime2");
+
+                    b.Property<float?>("Cena")
+                        .HasColumnType("real");
 
                     b.Property<DateTime>("DatumPostavljanja")
                         .HasColumnType("datetime2");
@@ -283,8 +252,8 @@ namespace Artify.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("KategorijaId")
-                        .HasColumnType("int");
+                    b.Property<bool>("NaAukciji")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Naziv")
                         .IsRequired()
@@ -294,11 +263,8 @@ namespace Artify.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("PortfolioId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PorudzbinaId")
-                        .HasColumnType("int");
+                    b.Property<float?>("PocetnaCenaAukcije")
+                        .HasColumnType("real");
 
                     b.Property<string>("Slika")
                         .IsRequired()
@@ -315,21 +281,61 @@ namespace Artify.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("UmetnikId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<float?>("TrenutnaCenaAukcije")
+                        .HasColumnType("real");
+
+                    b.Property<int>("UmetnikId")
+                        .HasColumnType("int");
 
                     b.HasKey("UmetnickoDeloId");
-
-                    b.HasIndex("KategorijaId");
-
-                    b.HasIndex("PortfolioId");
-
-                    b.HasIndex("PorudzbinaId");
 
                     b.HasIndex("UmetnikId");
 
                     b.ToTable("UmetnickaDela");
+                });
+
+            modelBuilder.Entity("Artify.Models.Umetnik", b =>
+                {
+                    b.Property<int>("UmetnikId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UmetnikId"));
+
+                    b.Property<string>("Biografija")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("DatumKreiranja")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("KorisnikId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("SlikaUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Specijalizacija")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Stil")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Tehnika")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("UmetnikId");
+
+                    b.HasIndex("KorisnikId");
+
+                    b.ToTable("Umetnici");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -357,6 +363,26 @@ namespace Artify.Migrations
                         .HasFilter("[NormalizedName] IS NOT NULL");
 
                     b.ToTable("AspNetRoles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = "1",
+                            Name = "Admin",
+                            NormalizedName = "ADMIN"
+                        },
+                        new
+                        {
+                            Id = "2",
+                            Name = "Umetnik",
+                            NormalizedName = "UMETNIK"
+                        },
+                        new
+                        {
+                            Id = "3",
+                            Name = "Kupac",
+                            NormalizedName = "KUPAC"
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -467,10 +493,10 @@ namespace Artify.Migrations
 
             modelBuilder.Entity("Artify.Models.Favoriti", b =>
                 {
-                    b.HasOne("Artify.Models.Korisnik", "Kupac")
+                    b.HasOne("Artify.Models.Korisnik", "Korisnik")
                         .WithMany()
-                        .HasForeignKey("KupacId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasForeignKey("KorisnikId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Artify.Models.UmetnickoDelo", "UmetnickoDelo")
@@ -479,53 +505,46 @@ namespace Artify.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Kupac");
+                    b.Navigation("Korisnik");
 
                     b.Navigation("UmetnickoDelo");
                 });
 
-            modelBuilder.Entity("Artify.Models.Korpa", b =>
+            modelBuilder.Entity("Artify.Models.Notifikacija", b =>
                 {
-                    b.HasOne("Artify.Models.Korisnik", "Kupac")
-                        .WithMany()
-                        .HasForeignKey("KupacId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                    b.HasOne("Artify.Models.Korisnik", "Korisnik")
+                        .WithMany("Notifikacije")
+                        .HasForeignKey("KorisnikId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Kupac");
-                });
-
-            modelBuilder.Entity("Artify.Models.Portfolio", b =>
-                {
-                    b.HasOne("Artify.Models.Korisnik", "Umetnik")
-                        .WithMany()
-                        .HasForeignKey("UmetnikId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Umetnik");
+                    b.Navigation("Korisnik");
                 });
 
             modelBuilder.Entity("Artify.Models.Porudzbina", b =>
                 {
-                    b.HasOne("Artify.Models.Korpa", "Korpa")
+                    b.HasOne("Artify.Models.Korisnik", "Korisnik")
                         .WithMany()
-                        .HasForeignKey("KorpaId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasForeignKey("KorisnikId")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("Artify.Models.Korpa", null)
-                        .WithMany("Porudzbine")
-                        .HasForeignKey("KorpaId1");
+                    b.HasOne("Artify.Models.UmetnickoDelo", "UmetnickoDelo")
+                        .WithMany()
+                        .HasForeignKey("UmetnickoDeloId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
-                    b.Navigation("Korpa");
+                    b.Navigation("Korisnik");
+
+                    b.Navigation("UmetnickoDelo");
                 });
 
             modelBuilder.Entity("Artify.Models.Recenzija", b =>
                 {
-                    b.HasOne("Artify.Models.Korisnik", "Kupac")
+                    b.HasOne("Artify.Models.Korisnik", "Korisnik")
                         .WithMany()
-                        .HasForeignKey("KupacId")
+                        .HasForeignKey("KorisnikId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
@@ -535,35 +554,31 @@ namespace Artify.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Kupac");
+                    b.Navigation("Korisnik");
 
                     b.Navigation("UmetnickoDelo");
                 });
 
             modelBuilder.Entity("Artify.Models.UmetnickoDelo", b =>
                 {
-                    b.HasOne("Artify.Models.Kategorija", "Kategorija")
-                        .WithMany()
-                        .HasForeignKey("KategorijaId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Artify.Models.Portfolio", null)
-                        .WithMany("UmetnickaDela")
-                        .HasForeignKey("PortfolioId");
-
-                    b.HasOne("Artify.Models.Porudzbina", null)
-                        .WithMany("KupljenaDela")
-                        .HasForeignKey("PorudzbinaId");
-
-                    b.HasOne("Artify.Models.Korisnik", "Umetnik")
+                    b.HasOne("Artify.Models.Umetnik", "Umetnik")
                         .WithMany("UmetnickaDela")
                         .HasForeignKey("UmetnikId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Umetnik");
+                });
+
+            modelBuilder.Entity("Artify.Models.Umetnik", b =>
+                {
+                    b.HasOne("Artify.Models.Korisnik", "Korisnik")
+                        .WithMany()
+                        .HasForeignKey("KorisnikId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Kategorija");
-
-                    b.Navigation("Umetnik");
+                    b.Navigation("Korisnik");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -619,22 +634,12 @@ namespace Artify.Migrations
 
             modelBuilder.Entity("Artify.Models.Korisnik", b =>
                 {
-                    b.Navigation("UmetnickaDela");
+                    b.Navigation("Notifikacije");
                 });
 
-            modelBuilder.Entity("Artify.Models.Korpa", b =>
-                {
-                    b.Navigation("Porudzbine");
-                });
-
-            modelBuilder.Entity("Artify.Models.Portfolio", b =>
+            modelBuilder.Entity("Artify.Models.Umetnik", b =>
                 {
                     b.Navigation("UmetnickaDela");
-                });
-
-            modelBuilder.Entity("Artify.Models.Porudzbina", b =>
-                {
-                    b.Navigation("KupljenaDela");
                 });
 #pragma warning restore 612, 618
         }

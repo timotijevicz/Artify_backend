@@ -12,28 +12,50 @@ namespace Artify.Models
     public class UmetnickoDelo
     {
         public int UmetnickoDeloId { get; set; }
+
+        [Required]
         public string Naziv { get; set; }
-        public string Opis { get; set; } 
-        public decimal Cena { get; set; }
-        public string Slika { get; set; } 
+
+        [Required]
+        public string Opis { get; set; }
+
+        // FIKSNA CENA (nije aukcija)
+        public float? Cena { get; set; }
+
+        [Required]
+        public string Slika { get; set; }
+
+        // AUKCIJA
+        public float? PocetnaCenaAukcije { get; set; }
+        public float? TrenutnaCenaAukcije { get; set; }
+
+        public DateTime? AukcijaPocinje { get; set; }
+        public DateTime? AukcijaZavrsava { get; set; }
+
         public DateTime DatumPostavljanja { get; set; } = DateTime.UtcNow;
-        public string Tehnika { get; set; }  // (ulje na platnu, akvarel, itd.)
-        public int? KategorijaId { get; set; }
-        public virtual Kategorija Kategorija { get; set; }
 
-        public string Stil { get; set; }  //  ( impresionizam, realizam)
-        public string Dimenzije {  get; set; }  // (sirina * visina)
-        public UmetnickoDeloStatus Status {  get; set; } 
+        [Required]
+        public string Tehnika { get; set; }
 
-        public string UmetnikId { get; set; }
-        public virtual Korisnik Umetnik {  get; set; }
-      
+        [Required]
+        public string Stil { get; set; }
+
+        [Required]
+        public string Dimenzije { get; set; }
+
+        public UmetnickoDeloStatus Status { get; set; } = UmetnickoDeloStatus.Dostupno;
+
+        public bool NaAukciji { get; set; } = false;
+
+        [Required]
+        public int UmetnikId { get; set; }
+        public virtual Umetnik Umetnik { get; set; }
     }
 
     public enum UmetnickoDeloStatus
     {
-        Dostupno,
-        Prodato,
-        Uklonjeno
+        Dostupno = 0,
+        Prodato = 1,
+        Uklonjeno = 2
     }
 }

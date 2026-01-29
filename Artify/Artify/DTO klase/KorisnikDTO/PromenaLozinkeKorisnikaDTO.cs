@@ -12,7 +12,7 @@ namespace Artify.DTO_klase.KorisnikDTO
     public class PromenaLozinkeKorisnikaDTO
     {
         [Required]
-        public string KorisnikId { get; set; }
+        public int KorisnikId { get; set; }
 
         [Required]
         public string TrenutnaLozinka { get; set; }

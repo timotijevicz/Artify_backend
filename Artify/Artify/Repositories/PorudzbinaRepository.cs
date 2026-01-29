@@ -1,12 +1,12 @@
 ﻿using Artify.Interfaces;
 using Artify.Models;
+using Artify.Data;
+using Artify.DTO_klase.PorudzbinaDTO;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Artify.Data;
-using Microsoft.EntityFrameworkCore;
-using Artify.DTO_klase.PorudzbinaDTO;
 
 namespace Artify.Repositories
 {
@@ -21,53 +21,55 @@ namespace Artify.Repositories
 
         public async Task<IEnumerable<Porudzbina>> GetAllPorudzbineAsync()
         {
-            return await _context.Porudzbine.Include(p => p.KupljenaDela).ToListAsync();
+            return await _context.Porudzbine
+                .Include(p => p.Korisnik)
+                .Include(p => p.UmetnickoDelo)
+                .ThenInclude(d => d.Umetnik)
+                .ToListAsync();
         }
 
         public async Task<Porudzbina> GetPorudzbinaByIdAsync(int PorudzbinaId)
         {
-            return await _context.Porudzbine.Include(p => p.KupljenaDela).FirstOrDefaultAsync(p => p.PorudzbinaId == PorudzbinaId);
+            return await _context.Porudzbine
+                .Include(p => p.Korisnik)
+                .Include(p => p.UmetnickoDelo)
+                .ThenInclude(d => d.Umetnik)
+                .FirstOrDefaultAsync(p => p.PorudzbinaId == PorudzbinaId);
         }
 
-        public async Task<Porudzbina> CreatePorudzbinaAsync(KreiranjePorudzbineDTO NovaPorudzbinaDTO)
+        public async Task<Porudzbina> CreatePorudzbinaAsync(KreiranjePorudzbineDTO dto)
         {
-            var novaPorudzbina = new Porudzbina
+            var delo = await _context.UmetnickaDela.FindAsync(dto.UmetnickoDeloId);
+            if (delo == null) throw new Exception("Umetničko delo ne postoji.");
+
+            if (delo.Status != UmetnickoDeloStatus.Dostupno)
+                throw new Exception("Delo nije dostupno za kupovinu.");
+
+            if (delo.NaAukciji)
+                throw new Exception("Aukcijsko delo se ne može kupiti direktno.");
+
+
+            var porudzbina = new Porudzbina
             {
-                UkupnaCena = NovaPorudzbinaDTO.UkupnaCena,
-                KorpaId = NovaPorudzbinaDTO.KorpaId,
-                KupljenaDela = await _context.UmetnickaDela
-                    .Where(d => NovaPorudzbinaDTO.KupljenaDelaId.Contains(d.UmetnickoDeloId))
-                    .ToListAsync()
+                UmetnickoDeloId = delo.UmetnickoDeloId,
+                KorisnikId = dto.KorisnikId.ToString(), // pretvoriti u string
+                CenaUTrenutkuKupovine = delo.Cena ?? 0f,
+                Status = PorudzbinaStatus.NaCekanju
             };
 
-            _context.Porudzbine.Add(novaPorudzbina);
+            delo.Status = UmetnickoDeloStatus.Prodato;
+
+            _context.Porudzbine.Add(porudzbina);
             await _context.SaveChangesAsync();
-            return novaPorudzbina;
+            return porudzbina;
         }
 
-        public async Task UpdatePorudzbinaAsync(AzuriranjePorudzbineDTO IzmenaPorudzbineDTO)
+        public async Task UpdatePorudzbinaAsync(AzuriranjePorudzbineDTO dto)
         {
-            var porudzbina = await _context.Porudzbine.Include(p => p.KupljenaDela).FirstOrDefaultAsync(p => p.PorudzbinaId == IzmenaPorudzbineDTO.PorudzbinaId);
+            var porudzbina = await _context.Porudzbine.FindAsync(dto.PorudzbinaId);
             if (porudzbina == null) throw new Exception("Porudžbina nije pronađena.");
 
-            if (IzmenaPorudzbineDTO.NovaUkupnaCena.HasValue)
-            {
-                porudzbina.UkupnaCena = IzmenaPorudzbineDTO.NovaUkupnaCena.Value;
-            }
-
-            if (IzmenaPorudzbineDTO.NoviStatus.HasValue)
-            {
-                porudzbina.Status = IzmenaPorudzbineDTO.NoviStatus.Value;
-            }
-
-            if (IzmenaPorudzbineDTO.NovaKupljenaDelaId != null)
-            {
-                porudzbina.KupljenaDela = await _context.UmetnickaDela
-                    .Where(d => IzmenaPorudzbineDTO.NovaKupljenaDelaId.Contains(d.UmetnickoDeloId))
-                    .ToListAsync();
-            }
-
-            _context.Porudzbine.Update(porudzbina);
+            porudzbina.Status = dto.NoviStatus;
             await _context.SaveChangesAsync();
         }
 
@@ -75,6 +77,10 @@ namespace Artify.Repositories
         {
             var porudzbina = await _context.Porudzbine.FindAsync(PorudzbinaId);
             if (porudzbina == null) return false;
+
+            var delo = await _context.UmetnickaDela.FindAsync(porudzbina.UmetnickoDeloId);
+            if (delo != null && porudzbina.Status != PorudzbinaStatus.Placena)
+                delo.Status = UmetnickoDeloStatus.Dostupno;
 
             _context.Porudzbine.Remove(porudzbina);
             await _context.SaveChangesAsync();

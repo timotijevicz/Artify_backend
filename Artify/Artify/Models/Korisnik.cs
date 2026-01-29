@@ -12,13 +12,15 @@ namespace Artify.Models
 {
     public class Korisnik : IdentityUser
     {
-        public string? ImeIPrezime { get; set; }
+        public string ImeIPrezime { get; set; } = string.Empty;
 
         // Token potreban samo za reset lozinke
         public string? TokenZaResetovanjeLozinke { get; set; }
         public DateTime? VremeIstekaTokenaZaReset { get; set; }
 
         public DateTime DatumRegistracije {  get; set; }
-        public virtual ICollection<UmetnickoDelo> UmetnickaDela { get; set; } = new List<UmetnickoDelo>();
+        public virtual ICollection<Notifikacija> Notifikacije { get; set; }
+             = new List<Notifikacija>();
+
     }
 }

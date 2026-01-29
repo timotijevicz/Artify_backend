@@ -1,4 +1,4 @@
-﻿using Artify.Interfaces;
+﻿ using Artify.Interfaces;
 using Artify.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -24,7 +24,7 @@ namespace Artify.Controllers
         }
 
         // Vraća sva umetnička dela
-        [HttpGet]
+        [HttpGet("SvaDela")]
         public async Task<IActionResult> GetAllArtworks()
         {
             var dela = await _umetnickoDeloServis.GetAllArtworksAsync();
@@ -32,7 +32,7 @@ namespace Artify.Controllers
         }
 
         // Vraća umetničko delo po ID-u
-        [HttpGet("{UmetnickoDeloId}")]
+        [HttpGet("DeloPoID/{UmetnickoDeloId}")]
         public async Task<IActionResult> GetArtworkById(int UmetnickoDeloId)
         {
             var delo = await _umetnickoDeloServis.GetArtworkByIdAsync(UmetnickoDeloId);
@@ -44,7 +44,7 @@ namespace Artify.Controllers
         }
 
         // Dodaje novo umetničko delo
-        [HttpPost]
+        [HttpPost("DodajNovoDelo")]
         public async Task<IActionResult> AddArtwork([FromBody] KreirajUmetnickoDeloDTO novoDelo)
         {
             if (!ModelState.IsValid)
@@ -53,11 +53,16 @@ namespace Artify.Controllers
             }
 
             var kreiranoDelo = await _umetnickoDeloServis.AddArtworkAsync(novoDelo);
-            return CreatedAtAction(nameof(GetArtworkById), new { id = kreiranoDelo.UmetnickoDeloId }, kreiranoDelo);
+            return CreatedAtAction(
+                nameof(GetArtworkById),
+                new { UmetnickoDeloId = kreiranoDelo.UmetnickoDeloId },
+                kreiranoDelo
+            );
+
         }
 
         // Ažurira postojeće umetničko delo
-        [HttpPut("{UmetnickoDeloId}")]
+        [HttpPut("AzurirajDelo/{UmetnickoDeloId}")]
         public async Task<IActionResult> UpdateArtwork(int UmetnickoDeloId, [FromBody] AzuriranjeUmetnickogDelaDTO izmenjenoDelo)
         {
             if (!ModelState.IsValid || UmetnickoDeloId != izmenjenoDelo.UmetnickoDeloId)
@@ -75,7 +80,7 @@ namespace Artify.Controllers
         }
 
         // Briše umetničko delo po ID-u
-        [HttpDelete("{UmetnickoDeloId}")]
+        [HttpDelete("ObrisiDelo/{UmetnickoDeloId}")]
         public async Task<IActionResult> DeleteArtwork(int UmetnickoDeloId)
         {
             var uspeh = await _umetnickoDeloServis.DeleteArtworkAsync(UmetnickoDeloId);
@@ -87,24 +92,17 @@ namespace Artify.Controllers
             return NoContent();
         }
 
-        // Vraća umetnička dela prema kategoriji
-        [HttpGet("by-category/{ategorijaId}")]
-        public async Task<IActionResult> GetArtworksByCategory(int KategorijaId)
-        {
-            var dela = await _umetnickoDeloServis.GetArtworksByCategoryAsync(KategorijaId);
-            return Ok(dela);
-        }
 
         // Vraća umetnička dela prema umetniku
-        [HttpGet("by-artist/{UmetnikId}")]
-        public async Task<IActionResult> GetArtworksByArtist(string UmetnikId)
+        [HttpGet("DelaPoIDUmetnika/{UmetnikId}")]
+        public async Task<IActionResult> GetArtworksByArtist(int UmetnikId)
         {
             var dela = await _umetnickoDeloServis.GetArtworksByArtistAsync(UmetnikId);
             return Ok(dela);
         }
 
         // Pretražuje umetnička dela prema ključnoj reči
-        [HttpGet("search")]
+        [HttpGet("PretragaDela")]
         public async Task<IActionResult> SearchArtworks([FromQuery] string keyword)
         {
             var dela = await _umetnickoDeloServis.SearchArtworksAsync(keyword);

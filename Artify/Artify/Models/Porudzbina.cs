@@ -14,19 +14,22 @@ namespace Artify.Models
         public int PorudzbinaId { get; set; }
         public DateTime DatumKreiranja { get; set; } = DateTime.Now;
 
-        public decimal UkupnaCena { get; set; }
-        public PorudzbinaStatus Status { get; set; } 
-        public int KorpaId { get; set; }
-        public virtual Korpa Korpa { get; set; } 
+        public float CenaUTrenutkuKupovine { get; set; } = 0f;
+        public PorudzbinaStatus Status { get; set; }
 
-        public virtual List<UmetnickoDelo> KupljenaDela { get; set; } = new List<UmetnickoDelo>();
+        public string KorisnikId { get; set; }
+        public virtual Korisnik Korisnik { get; set; }
 
+        public int UmetnickoDeloId { get; set; }
+        public virtual UmetnickoDelo? UmetnickoDelo { get; set; }
     }
 
     public enum PorudzbinaStatus
     {
-        Obrada,
-        Poslato,
-        Dostavljeno
+        NaCekanju = 0,
+        Odobrena = 1,
+        Odbijena = 2,
+        Placena = 3,
+        Otkazana = 4
     }
 }

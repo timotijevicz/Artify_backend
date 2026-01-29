@@ -13,11 +13,9 @@ namespace Artify.DTO_klase.PorudzbinaDTO
     public class KreiranjePorudzbineDTO
     {
         [Required]
-        public decimal UkupnaCena { get; set; }
+        public int UmetnickoDeloId { get; set; }
 
         [Required]
-        public int KorpaId { get; set; } // ID korpe povezane sa porudžbinom
-
-        public List<int> KupljenaDelaId { get; set; } = new List<int>(); // Lista ID-eva kupljenih umetničkih dela
+        public string KorisnikId { get; set; }
     }
 }

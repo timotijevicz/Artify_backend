@@ -7,32 +7,29 @@ using System.Threading.Tasks;
 using Artify.Models;
 using System.ComponentModel.DataAnnotations;
 
-
 namespace Artify.DTO_klase.UmetnickoDeloDTO
 {
-    public class AzuriranjeUmetnickogDelaDTO
+    public class KreirajDeloZaAukcijuDTO
     {
         [Required]
-        public int UmetnickoDeloId { get; set; } // ID umetničkog dela za ažuriranje
-
         public string Naziv { get; set; }
 
-        [StringLength(500)]
+        [Required]
         public string Opis { get; set; }
 
-        [Range(0.01, double.MaxValue, ErrorMessage = "Cena mora biti veća od 0.")]
-        public float? Cena { get; set; }
+        public float PocetnaCenaAukcije { get; set; }
+
+        public DateTime AukcijaZavrsava { get; set; }
 
         public string Slika { get; set; }
 
+        [Required]
         public string Tehnika { get; set; }
 
-        public int? KategorijaId { get; set; }
-
         public string Stil { get; set; }
+        public string Dimenzije { get; set; }
 
-        public string Dimenzije { get; set; } 
-
-        public UmetnickoDeloStatus? Status { get; set; }
+        [Required]
+        public int UmetnikId { get; set; }
     }
 }
