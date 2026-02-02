@@ -32,7 +32,7 @@ namespace Artify.Repositories
             return await _userManager.Users.ToListAsync();
         }
 
-        public async Task<Korisnik> GetUserByIdAsync(int korisnikId)
+        public async Task<Korisnik> GetUserByIdAsync(string korisnikId)
         {
             // UserManager koristi string ID, pa pretvaramo int u string
             return await _userManager.FindByIdAsync(korisnikId.ToString());
@@ -93,7 +93,7 @@ namespace Artify.Repositories
             await _signInManager.SignOutAsync();
         }
 
-        public async Task DeleteUserAsync(int korisnikId)
+        public async Task DeleteUserAsync(string korisnikId)
         {
             var korisnik = await _context.Users.FindAsync(korisnikId);
             if (korisnik == null)

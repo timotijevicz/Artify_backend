@@ -182,8 +182,7 @@ namespace Artify.Migrations
                         name: "FK_Notifikacije_AspNetUsers_KorisnikId",
                         column: x => x.KorisnikId,
                         principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -197,6 +196,7 @@ namespace Artify.Migrations
                     Tehnika = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Stil = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Specijalizacija = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Grad = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SlikaUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsApproved = table.Column<bool>(type: "bit", nullable: false),
                     IsAvailable = table.Column<bool>(type: "bit", nullable: false),

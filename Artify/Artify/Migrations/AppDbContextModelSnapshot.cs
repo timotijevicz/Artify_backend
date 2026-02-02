@@ -306,6 +306,9 @@ namespace Artify.Migrations
                     b.Property<DateTime>("DatumKreiranja")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Grad")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsApproved")
                         .HasColumnType("bit");
 
@@ -512,7 +515,7 @@ namespace Artify.Migrations
                     b.HasOne("Artify.Models.Korisnik", "Korisnik")
                         .WithMany("Notifikacije")
                         .HasForeignKey("KorisnikId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Korisnik");

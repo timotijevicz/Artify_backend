@@ -15,7 +15,7 @@ namespace Artify.Data
         // DbSet-ovi za entitete u projektu
 
         public DbSet<Favoriti> Favoriti { get; set; }
-        public DbSet<Korisnik> Korisnici { get; set; }
+        //public DbSet<Korisnik> Korisnik { get; set; }
         public DbSet<Porudzbina> Porudzbine { get; set; }
         public DbSet<Recenzija> Recenzije { get; set; }
         public DbSet<UmetnickoDelo> UmetnickaDela { get; set; }
@@ -30,16 +30,16 @@ namespace Artify.Data
 
 
             modelBuilder.Entity<Umetnik>()
-            .HasMany(u => u.UmetnickaDela)
-            .WithOne(d => d.Umetnik)
-            .HasForeignKey(d => d.UmetnikId)
-            .OnDelete(DeleteBehavior.NoAction); // ⬅ KLJUČNO
+                .HasMany(u => u.UmetnickaDela)
+                .WithOne(d => d.Umetnik)
+                .HasForeignKey(d => d.UmetnikId)
+                .OnDelete(DeleteBehavior.NoAction); // ⬅ KLJUČNO
 
             modelBuilder.Entity<Korisnik>()
                 .HasMany(k => k.Notifikacije)
                 .WithOne(n => n.Korisnik)
                 .HasForeignKey(n => n.KorisnikId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<Porudzbina>()
                 .HasOne(p => p.Korisnik)
@@ -64,6 +64,18 @@ namespace Artify.Data
                 .WithMany()
                 .HasForeignKey(r => r.UmetnickoDeloId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Favoriti>()
+                .HasOne(f => f.Korisnik)
+                .WithMany()
+                .HasForeignKey(f => f.KorisnikId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Favoriti>()
+                .HasOne(f => f.UmetnickoDelo)
+                .WithMany()
+                .HasForeignKey(f => f.UmetnickoDeloId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             SeedRoles(modelBuilder);
         }

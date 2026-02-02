@@ -22,6 +22,7 @@ namespace Artify.Models
         public string? Tehnika { get; set; }
         public string? Stil { get; set; }
         public string? Specijalizacija { get; set; }
+        public string? Grad { get; set; }
         public string? SlikaUrl { get; set; }
 
         public bool IsApproved { get; set; } = false;

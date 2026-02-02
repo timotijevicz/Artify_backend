@@ -11,14 +11,16 @@ namespace Artify.Models
 {
     public class Favoriti
     {
-        [Key]
         public int FavoritiId { get; set; }
+
         [Required]
         public string KorisnikId { get; set; }
+
+        public Korisnik Korisnik { get; set; }
+
         [Required]
         public int UmetnickoDeloId { get; set; }
-        [Required]
-        public virtual Korisnik? Korisnik { get; set; }
-        public virtual UmetnickoDelo UmetnickoDelo { get; set; }
+
+        public UmetnickoDelo UmetnickoDelo { get; set; }
     }
 }

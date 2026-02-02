@@ -20,6 +20,7 @@ namespace Artify.DTO_klase.UmetnikDTO
         public string? Tehnika { get; set; }
         public string? Stil { get; set; }
         public string? Specijalizacija { get; set; }
+        public string? Grad { get; set; }
         public string? SlikaUrl { get; set; }
     }
 }

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Artify.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260129102049_Migracija")]
+    [Migration("20260201195641_Migracija")]
     partial class Migracija
     {
         /// <inheritdoc />
@@ -309,6 +309,9 @@ namespace Artify.Migrations
                     b.Property<DateTime>("DatumKreiranja")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Grad")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsApproved")
                         .HasColumnType("bit");
 
@@ -515,7 +518,7 @@ namespace Artify.Migrations
                     b.HasOne("Artify.Models.Korisnik", "Korisnik")
                         .WithMany("Notifikacije")
                         .HasForeignKey("KorisnikId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Korisnik");
