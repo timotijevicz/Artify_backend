@@ -11,5 +11,6 @@ namespace Artify.Interfaces
         Task<List<Favoriti>> GetAllFavoritesByUserId(string KorisnikId);
         Task<Favoriti> AddToFavorites(string KorisnikId, int UmetnickoDeloId);
         Task<bool> RemoveFromFavorites(string KorisnikId, int UmetnickoDeloId);
+        Task<bool> Exists(string kupacId, int umetnickoDeloId);
     }
 }

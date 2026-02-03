@@ -16,6 +16,8 @@ namespace Artify.Mappers
             CreateMap<KreirajUmetnikaDTO, Umetnik>();
             CreateMap<Umetnik, KreirajUmetnikaDTO>();
 
+            CreateMap<RegistracijaUmetnikaDTO, Umetnik>();
+            CreateMap<Umetnik, RegistracijaUmetnikaDTO>();
 
         }
     }

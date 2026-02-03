@@ -45,16 +45,13 @@ namespace Artify.Controllers
 
         // Dodavanje umetničkog dela u favorite
         [HttpPost("DodajUFavorite/{UmetnickoDeloId}")]
-        //[Authorize(Roles = "Kupac")]
+        [Authorize(Roles = "Kupac")]
         public async Task<IActionResult> DodajUFavoriti([FromRoute] int UmetnickoDeloId)
         {
-            // Izvlačenje ID korisnika iz JWT tokena
             var KupacId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrEmpty(KupacId))
-            {
                 return Unauthorized(new { message = "Korisnik nije autorizovan." });
-            }
 
             try
             {
@@ -87,6 +84,21 @@ namespace Artify.Controllers
             }
 
             return NotFound("Umetničko delo nije pronađeno u favoritima.");
+        }
+
+        // Provera da li je umetničko delo u favoritima korisnika
+        [HttpGet("DaLiJeUFavoritima/{UmetnickoDeloId}")]
+        [Authorize(Roles = "Kupac")]
+        public async Task<IActionResult> DaLiJeUFavoritima(int UmetnickoDeloId)
+        {
+            var kupacId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(kupacId))
+                return Unauthorized(new { message = "Korisnik nije autorizovan." });
+
+            var postoji = await _favoritiService.Exists(kupacId, UmetnickoDeloId);
+
+            return Ok(postoji); // true / false
         }
     }
 }

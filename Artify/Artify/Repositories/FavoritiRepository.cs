@@ -62,5 +62,13 @@ namespace Artify.Repositories
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<bool> Exists(string kupacId, int umetnickoDeloId)
+        {
+            return await _context.Favoriti
+                .AnyAsync(f =>
+                    f.KorisnikId == kupacId &&
+                    f.UmetnickoDeloId == umetnickoDeloId);
+        }
     }
 }

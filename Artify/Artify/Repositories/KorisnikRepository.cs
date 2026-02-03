@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Artify.Token;
+using Artify.DTO_klase.UmetnikDTO;
 
 namespace Artify.Repositories
 {
@@ -16,15 +18,21 @@ namespace Artify.Repositories
         private readonly AppDbContext _context;
         private readonly UserManager<Korisnik> _userManager;
         private readonly SignInManager<Korisnik> _signInManager;
+        private readonly IToken _tokenService;
+        private readonly RoleManager<IdentityRole> _roleManager;
 
         public KorisnikRepository(
             UserManager<Korisnik> userManager,
             SignInManager<Korisnik> signInManager,
-            AppDbContext context)
+            RoleManager<IdentityRole> roleManager,
+            AppDbContext context,
+            IToken tokenService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _roleManager = roleManager;
             _context = context;
+            _tokenService = tokenService;
         }
 
         public async Task<IEnumerable<Korisnik>> GetAllUsersAsync()
@@ -50,24 +58,93 @@ namespace Artify.Repositories
 
             var result = await _userManager.CreateAsync(korisnik, dto.Lozinka ?? "");
 
-            if (result.Succeeded)
-                return "Registracija uspešna.";
+            if (!result.Succeeded)
+                return string.Join(", ", result.Errors.Select(e => e.Description));
 
-            return string.Join(", ", result.Errors.Select(e => e.Description));
+            // ✅ DODELA ROLE
+            var roleName = "Kupac";
+
+            // (opciono ali preporučeno) proveri da rola postoji
+            if (!await _roleManager.RoleExistsAsync(roleName))
+                await _roleManager.CreateAsync(new IdentityRole(roleName));
+
+            var roleResult = await _userManager.AddToRoleAsync(korisnik, roleName);
+
+            if (!roleResult.Succeeded)
+                return string.Join(", ", roleResult.Errors.Select(e => e.Description));
+
+            return "Registracija uspešna.";
         }
 
-        public async Task<string> LoginAsync(LogovanjeKorisnikaDTO dto)
+        public async Task<string> RegisterArtistAsync(RegistracijaUmetnikaDTO dto)
         {
-            var result = await _signInManager.PasswordSignInAsync(
-                dto.Email ?? "",
-                dto.Lozinka ?? "",
-                isPersistent: false,
-                lockoutOnFailure: false
-            );
+            var roleName = "Umetnik";
 
-            return result.Succeeded
-                ? "Prijava uspešna."
-                : "Neispravno korisničko ime ili lozinka.";
+            if (!await _roleManager.RoleExistsAsync(roleName))
+                await _roleManager.CreateAsync(new IdentityRole(roleName));
+
+            var korisnik = new Korisnik
+            {
+                ImeIPrezime = dto.ImeIPrezime,
+                Email = dto.Email ?? "",
+                UserName = dto.Email ?? "",
+                DatumRegistracije = DateTime.UtcNow
+            };
+
+            var createRes = await _userManager.CreateAsync(korisnik, dto.Lozinka ?? "");
+            if (!createRes.Succeeded)
+                return string.Join(", ", createRes.Errors.Select(e => e.Description));
+
+            var roleRes = await _userManager.AddToRoleAsync(korisnik, roleName);
+            if (!roleRes.Succeeded)
+                return string.Join(", ", roleRes.Errors.Select(e => e.Description));
+
+            // kreiraj umetnika
+            var umetnik = new Umetnik
+            {
+                KorisnikId = korisnik.Id,
+                Biografija = dto.Biografija,
+                Tehnika = dto.Tehnika,
+                Stil = dto.Stil,
+                Specijalizacija = dto.Specijalizacija,
+                Grad = dto.Grad,
+                SlikaUrl = dto.SlikaUrl,
+                IsApproved = false,
+                IsAvailable = false
+            };
+
+            _context.Umetnici.Add(umetnik);
+            await _context.SaveChangesAsync();
+
+            return "Registracija umetnika uspešna.";
+        }
+
+        public async Task<LoginResponseDTO?> LoginAsync(LogovanjeKorisnikaDTO dto)
+
+        {
+            var email = dto.Email ?? "";
+            var lozinka = dto.Lozinka ?? "";
+
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null) return null;
+
+            var valid = await _userManager.CheckPasswordAsync(user, lozinka);
+            if (!valid) return null;
+
+            var token = _tokenService.CreateToken(user);
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return new LoginResponseDTO
+            {
+                Token = token,
+                User = new UserDTO
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    UserName = user.UserName,
+                    Roles = roles
+                }
+            };
         }
 
         public async Task<string> ChangePasswordAsync(PromenaLozinkeKorisnikaDTO dto)

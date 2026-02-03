@@ -3,6 +3,7 @@ using Artify.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Artify.DTO_klase.KorisnikDTO;
+using Artify.DTO_klase.UmetnikDTO;
 
 namespace Artify.Controllers
 {
@@ -54,19 +55,35 @@ namespace Artify.Controllers
             return BadRequest(result);
         }
 
-        // Prijava korisnika
-        [HttpPost("PrijavaKorisnika")]
-        public async Task<IActionResult> LoginUser([FromBody] LogovanjeKorisnikaDTO logovanjeDTO)
+        //registracija umetnika
+        [HttpPost("RegistracijaUmetnika")]
+        public async Task<IActionResult> RegisterArtist([FromBody] RegistracijaUmetnikaDTO dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var result = await _korisnikService.LoginAsync(logovanjeDTO);
+            var result = await _korisnikService.RegisterArtistAsync(dto);
 
-            if (result == "Prijava uspešna.")
+            if (result == "Registracija umetnika uspešna.")
                 return Ok(result);
 
-            return Unauthorized(result);
+            return BadRequest(result);
+        }
+
+        // Prijava korisnika
+        [HttpPost("PrijavaKorisnika")]
+        [ProducesResponseType(typeof(LoginResponseDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> LoginUser([FromBody] LogovanjeKorisnikaDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { message = "Neispravni podaci." });
+
+            var result = await _korisnikService.LoginAsync(dto);
+
+            if (result == null)
+                return Unauthorized(new { message = "Pogrešan email ili lozinka." });
+
+            return Ok(result);
         }
 
         // Promena lozinke
