@@ -22,7 +22,7 @@ namespace Artify.DTO_klase.UmetnickoDeloDTO
 
         [Range(0.01, double.MaxValue, ErrorMessage = "Cena mora biti veća od 0.")]
         public float? Cena { get; set; }
-
+        [Required]
         public string Slika { get; set; }
 
         public string Tehnika { get; set; }

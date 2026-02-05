@@ -1,14 +1,10 @@
-﻿ using Artify.Interfaces;
-using Artify.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Artify.Repositories;
-using System.Security.Claims;
+﻿using Artify.Interfaces;
 using Artify.DTO_klase.UmetnickoDeloDTO;
-
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Artify.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Artify.Controllers
 {
@@ -23,7 +19,6 @@ namespace Artify.Controllers
             _umetnickoDeloServis = umetnickoDeloServis;
         }
 
-        // Vraća sva umetnička dela
         [HttpGet("SvaDela")]
         public async Task<IActionResult> GetAllArtworks()
         {
@@ -31,77 +26,103 @@ namespace Artify.Controllers
             return Ok(dela);
         }
 
-        // Vraća umetničko delo po ID-u
-        [HttpGet("DeloPoID/{UmetnickoDeloId}")]
-        public async Task<IActionResult> GetArtworkById(int UmetnickoDeloId)
+        [HttpGet("DeloPoID/{id}")]
+        public async Task<IActionResult> GetArtworkById(int id)
         {
-            var delo = await _umetnickoDeloServis.GetArtworkByIdAsync(UmetnickoDeloId);
+            var delo = await _umetnickoDeloServis.GetArtworkByIdAsync(id);
             if (delo == null)
-            {
-                return NotFound("Umetničko delo sa datim ID-om nije pronađeno.");
-            }
+                return NotFound();
+
             return Ok(delo);
         }
 
-        // Dodaje novo umetničko delo
-        [HttpPost("DodajNovoDelo")]
-        public async Task<IActionResult> AddArtwork([FromBody] KreirajUmetnickoDeloDTO novoDelo)
+
+        [Authorize(Roles = "Umetnik")]
+        [HttpGet("MojaDela")]
+        public async Task<IActionResult> GetMyArtworks()
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            var korisnikId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (korisnikId == null) return Unauthorized();
 
-            var kreiranoDelo = await _umetnickoDeloServis.AddArtworkAsync(novoDelo);
-            return CreatedAtAction(
-                nameof(GetArtworkById),
-                new { UmetnickoDeloId = kreiranoDelo.UmetnickoDeloId },
-                kreiranoDelo
-            );
+            var dela = await _umetnickoDeloServis
+                .GetArtworksByKorisnikIdAsync(korisnikId);
 
-        }
-
-        // Ažurira postojeće umetničko delo
-        [HttpPut("AzurirajDelo/{UmetnickoDeloId}")]
-        public async Task<IActionResult> UpdateArtwork(int UmetnickoDeloId, [FromBody] AzuriranjeUmetnickogDelaDTO izmenjenoDelo)
-        {
-            if (!ModelState.IsValid || UmetnickoDeloId != izmenjenoDelo.UmetnickoDeloId)
-            {
-                return BadRequest("Podaci nisu ispravni.");
-            }
-
-            var uspeh = await _umetnickoDeloServis.UpdateArtworkAsync(izmenjenoDelo);
-            if (!uspeh)
-            {
-                return NotFound("Umetničko delo sa datim ID-om nije pronađeno.");
-            }
-
-            return NoContent();
-        }
-
-        // Briše umetničko delo po ID-u
-        [HttpDelete("ObrisiDelo/{UmetnickoDeloId}")]
-        public async Task<IActionResult> DeleteArtwork(int UmetnickoDeloId)
-        {
-            var uspeh = await _umetnickoDeloServis.DeleteArtworkAsync(UmetnickoDeloId);
-            if (!uspeh)
-            {
-                return NotFound("Umetničko delo sa datim ID-om nije pronađeno.");
-            }
-
-            return NoContent();
-        }
-
-
-        // Vraća umetnička dela prema umetniku
-        [HttpGet("DelaPoIDUmetnika/{UmetnikId}")]
-        public async Task<IActionResult> GetArtworksByArtist(int UmetnikId)
-        {
-            var dela = await _umetnickoDeloServis.GetArtworksByArtistAsync(UmetnikId);
             return Ok(dela);
         }
 
-        // Pretražuje umetnička dela prema ključnoj reči
+
+        [Authorize]
+        [HttpPost("DodajNovoDelo")]
+        public async Task<IActionResult> AddArtwork(
+            [FromBody] KreirajUmetnickoDeloDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var kreirano = await _umetnickoDeloServis.AddArtworkAsync(dto);
+
+            return CreatedAtAction(
+                nameof(GetArtworkById),
+                new { id = kreirano.UmetnickoDeloId },
+                kreirano
+            );
+        }
+
+        [Authorize(Roles = "Umetnik")]
+        [HttpPost("DodajNovoDeloZaAukciju")]
+        public async Task<IActionResult> AddAuctionArtwork(
+            [FromBody] KreirajDeloZaAukcijuDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var korisnikId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (korisnikId == null)
+                return Unauthorized();
+
+            var dela = await _umetnickoDeloServis
+                .GetArtworksByKorisnikIdAsync(korisnikId);
+
+            // izvučemo umetnikId iz prvog dela (ili dodaj posebnu metodu)
+            var umetnikId = dela.FirstOrDefault()?.UmetnikId;
+            if (umetnikId == null)
+                return BadRequest("Umetnik nije pronađen.");
+
+            var delo = await _umetnickoDeloServis
+                .AddAuctionArtworkAsync(dto, umetnikId.Value);
+
+            return Ok(delo);
+        }
+
+
+        [Authorize]
+        [HttpPut("AzurirajDelo/{id}")]
+        public async Task<IActionResult> UpdateArtwork(
+            int id,
+            [FromBody] AzuriranjeUmetnickogDelaDTO dto)
+        {
+            if (!ModelState.IsValid || id != dto.UmetnickoDeloId)
+                return BadRequest();
+
+            var success = await _umetnickoDeloServis.UpdateArtworkAsync(dto);
+            if (!success)
+                return NotFound();
+
+            return NoContent();
+        }
+
+        [Authorize]
+        [HttpDelete("ObrisiDelo/{id}")]
+        public async Task<IActionResult> DeleteArtwork(int id)
+        {
+            var success = await _umetnickoDeloServis.DeleteArtworkAsync(id);
+            if (!success)
+                return NotFound();
+
+            return NoContent();
+        }
+
+ 
         [HttpGet("PretragaDela")]
         public async Task<IActionResult> SearchArtworks([FromQuery] string keyword)
         {

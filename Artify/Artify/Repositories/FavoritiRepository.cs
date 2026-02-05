@@ -30,6 +30,13 @@ namespace Artify.Repositories
         // Dodaje umetničko delo u omiljene
         public async Task<Favoriti> AddToFavorites(string KorisnikId, int umetnickoDeloId)
         {
+            // ✅ Provera da li umetničko delo postoji (sprečava FK crash)
+            var deloPostoji = await _context.UmetnickaDela
+                .AnyAsync(d => d.UmetnickoDeloId == umetnickoDeloId);
+
+            if (!deloPostoji)
+                throw new InvalidOperationException($"Umetničko delo (ID={umetnickoDeloId}) ne postoji.");
+
             // Provera da li već postoji u omiljenim
             var existing = await _context.Favoriti
                 .FirstOrDefaultAsync(f => f.KorisnikId == KorisnikId && f.UmetnickoDeloId == umetnickoDeloId);

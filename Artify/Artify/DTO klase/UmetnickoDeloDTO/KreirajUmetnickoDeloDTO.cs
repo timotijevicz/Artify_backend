@@ -21,8 +21,8 @@ namespace Artify.DTO_klase.UmetnickoDeloDTO
 
         // FIKSNA CENA
         [Range(0.01, float.MaxValue, ErrorMessage = "Cena mora biti veća od 0.")]
-        public float Cena { get; set; }
-
+        public float? Cena { get; set; }
+        [Required]
         public string Slika { get; set; }
 
         [Required]

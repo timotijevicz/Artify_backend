@@ -20,9 +20,7 @@ namespace Artify.Repositories
             _context = context;
         }
 
-        // ============================
-        // GET ALL
-        // ============================
+  
         public async Task<IEnumerable<UmetnickoDelo>> GetAllArtworksAsync()
         {
             return await _context.UmetnickaDela
@@ -30,9 +28,6 @@ namespace Artify.Repositories
                 .ToListAsync();
         }
 
-        // ============================
-        // GET BY ID
-        // ============================
         public async Task<UmetnickoDelo> GetArtworkByIdAsync(int umetnickoDeloId)
         {
             return await _context.UmetnickaDela
@@ -40,9 +35,6 @@ namespace Artify.Repositories
                 .FirstOrDefaultAsync(d => d.UmetnickoDeloId == umetnickoDeloId);
         }
 
-        // ============================
-        // ADD FIXED PRICE ARTWORK
-        // ============================
         public async Task<UmetnickoDelo> AddArtworkAsync(KreirajUmetnickoDeloDTO dto)
         {
             // VALIDACIJA – FIKSNA PRODAJA
@@ -80,16 +72,17 @@ namespace Artify.Repositories
         // ============================
         // ADD AUCTION ARTWORK
         // ============================
-        public async Task<UmetnickoDelo> AddAuctionArtworkAsync(KreirajDeloZaAukcijuDTO dto)
+        public async Task<UmetnickoDelo> AddAuctionArtworkAsync(
+    KreirajDeloZaAukcijuDTO dto,
+    int umetnikId)
         {
-            // VALIDACIJA – AUKCIJA
             if (dto.PocetnaCenaAukcije <= 0)
-                throw new Exception("Početna cena aukcije mora biti veća od 0.");
+                throw new Exception("Početna cena mora biti veća od 0.");
 
             if (dto.AukcijaZavrsava <= DateTime.UtcNow)
-                throw new Exception("Datum završetka aukcije mora biti u budućnosti.");
+                throw new Exception("Datum završetka mora biti u budućnosti.");
 
-            var novoDelo = new UmetnickoDelo
+            var delo = new UmetnickoDelo
             {
                 Naziv = dto.Naziv,
                 Opis = dto.Opis,
@@ -97,26 +90,26 @@ namespace Artify.Repositories
                 Tehnika = dto.Tehnika,
                 Stil = dto.Stil,
                 Dimenzije = dto.Dimenzije,
-                UmetnikId = dto.UmetnikId,
 
-                Cena = null,
                 NaAukciji = true,
+                PocetnaCenaAukcije = (float)dto.PocetnaCenaAukcije,
+                TrenutnaCenaAukcije = (float)dto.PocetnaCenaAukcije,
 
-                PocetnaCenaAukcije = dto.PocetnaCenaAukcije,
-                TrenutnaCenaAukcije = dto.PocetnaCenaAukcije,
-
-                AukcijaPocinje = DateTime.UtcNow,   // ⭐ AUTOMATSKI
+                AukcijaPocinje = DateTime.UtcNow,
                 AukcijaZavrsava = dto.AukcijaZavrsava,
 
                 Status = UmetnickoDeloStatus.Dostupno,
-                DatumPostavljanja = DateTime.UtcNow
+                DatumPostavljanja = DateTime.UtcNow,
+
+                UmetnikId = umetnikId
             };
 
-            _context.UmetnickaDela.Add(novoDelo);
+            _context.UmetnickaDela.Add(delo);
             await _context.SaveChangesAsync();
 
-            return novoDelo;
+            return delo;
         }
+
 
         // ============================
         // UPDATE
@@ -187,5 +180,14 @@ namespace Artify.Repositories
                 .Include(d => d.Umetnik)
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<UmetnickoDelo>> GetArtworksByKorisnikIdAsync(string korisnikId)
+        {
+            return await _context.UmetnickaDela
+                .Where(d => d.Umetnik.KorisnikId == korisnikId)
+                .Include(d => d.Umetnik)
+                .ToListAsync();
+        }
+
     }
 }

@@ -1,12 +1,10 @@
 ﻿using Artify.Interfaces;
 using Artify.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Artify.Repositories;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace Artify.Controllers
 {
@@ -23,29 +21,32 @@ namespace Artify.Controllers
             _userManager = userManager;
         }
 
-        // Prikaz svih omiljenih umetničkih dela po ID korisnika
+        // FavoritiController.cs (izmena samo GetByKupacId)
         [HttpGet("PrikazOmiljenihDelaPoID/{KupacId}")]
         [Authorize(Roles = "Kupac")]
         public async Task<IActionResult> GetByKupacId(string KupacId)
         {
+            var tokenKupacId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(tokenKupacId))
+                return Unauthorized(new { message = "Korisnik nije autorizovan." });
+
+            // ✅ ne dozvoli da traži tuđe favorite
+            if (KupacId != tokenKupacId)
+                return Forbid();
+
             var korisnik = await _userManager.FindByIdAsync(KupacId);
             if (korisnik == null)
-            {
                 return NotFound("Korisnik nije pronađen.");
-            }
 
             var favoriti = await _favoritiService.GetAllFavoritesByUserId(KupacId);
-            if (favoriti != null && favoriti.Any())
-            {
-                return Ok(favoriti);
-            }
 
-            return NotFound("Nema omiljenih umetničkih dela za ovog korisnika.");
+            return Ok(favoriti);
         }
 
         // Dodavanje umetničkog dela u favorite
         [HttpPost("DodajUFavorite/{UmetnickoDeloId}")]
-        [Authorize(Roles = "Kupac")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Kupac")]
         public async Task<IActionResult> DodajUFavoriti([FromRoute] int UmetnickoDeloId)
         {
             var KupacId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -69,19 +70,14 @@ namespace Artify.Controllers
         [Authorize(Roles = "Kupac")]
         public async Task<IActionResult> UkloniIzFavorita(int UmetnickoDeloId)
         {
-            // Izvlačenje ID korisnika iz JWT tokena
             var KupacId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrEmpty(KupacId))
-            {
                 return Unauthorized(new { message = "Korisnik nije autorizovan." });
-            }
 
             var rezultat = await _favoritiService.RemoveFromFavorites(KupacId, UmetnickoDeloId);
             if (rezultat)
-            {
                 return NoContent();
-            }
 
             return NotFound("Umetničko delo nije pronađeno u favoritima.");
         }
