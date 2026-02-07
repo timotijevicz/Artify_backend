@@ -7,16 +7,15 @@ using System.Threading.Tasks;
 using Artify.Models;
 using System.ComponentModel.DataAnnotations;
 
-namespace Artify.DTO_klase.RecenzijaDTO
+namespace Artify.DTO_klase.AukcijskaPonudaDTO
 {
-    public class AzurirajRecenzijuDTO
+    public class DodajPonuduDTO
     {
-        public int RecenzijaId { get; set; }
+        [Required]
+        public int UmetnickoDeloId { get; set; }
 
-        [Range(1, 5)]
-        public int Ocena { get; set; }
-
-        [StringLength(200)]
-        public string Komentar { get; set; } = "";
+        [Required]
+        [Range(0.01, 999999999)]
+        public float? Iznos { get; set; }
     }
 }

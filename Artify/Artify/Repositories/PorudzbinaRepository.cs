@@ -48,19 +48,28 @@ namespace Artify.Repositories
             if (delo.NaAukciji)
                 throw new Exception("Aukcijsko delo se ne može kupiti direktno.");
 
+            // ✅ spreči duple porudžbine za isto delo (dok nije otkazana/odbijena)
+            var exists = await _context.Porudzbine.AnyAsync(p =>
+                p.UmetnickoDeloId == dto.UmetnickoDeloId &&
+                (p.Status == PorudzbinaStatus.NaCekanju ||
+                 p.Status == PorudzbinaStatus.Odobrena ||
+                 p.Status == PorudzbinaStatus.Placena)
+            );
+            if (exists)
+                throw new Exception("Porudžbina za ovo delo već postoji.");
 
             var porudzbina = new Porudzbina
             {
                 UmetnickoDeloId = delo.UmetnickoDeloId,
-                KorisnikId = dto.KorisnikId.ToString(), // pretvoriti u string
+                KorisnikId = dto.KorisnikId,            // ✅ već je string
                 CenaUTrenutkuKupovine = delo.Cena ?? 0f,
                 Status = PorudzbinaStatus.NaCekanju
             };
 
-            delo.Status = UmetnickoDeloStatus.Prodato;
-
+            // ✅ NE MENJAJ status dela ovde (nema Rezervisano)
             _context.Porudzbine.Add(porudzbina);
             await _context.SaveChangesAsync();
+
             return porudzbina;
         }
 
@@ -83,6 +92,38 @@ namespace Artify.Repositories
                 delo.Status = UmetnickoDeloStatus.Dostupno;
 
             _context.Porudzbine.Remove(porudzbina);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<Porudzbina>> GetPorudzbineByKorisnikIdAsync(string korisnikId)
+        {
+            return await _context.Porudzbine
+                .Where(p => p.KorisnikId == korisnikId)
+                .Include(p => p.UmetnickoDelo) // ako želiš podatke o delu
+                .ToListAsync();
+        }
+
+        public async Task<bool> PayAsync(int porudzbinaId, string korisnikId)
+        {
+            var p = await _context.Porudzbine
+                .Include(x => x.UmetnickoDelo)
+                .FirstOrDefaultAsync(x => x.PorudzbinaId == porudzbinaId);
+
+            if (p == null) return false;
+            if (p.KorisnikId != korisnikId) return false;
+
+            if (p.Status == PorudzbinaStatus.Placena || p.Status == PorudzbinaStatus.Otkazana)
+                return false;
+
+            if (p.UmetnickoDelo != null)
+            {
+                p.CenaUTrenutkuKupovine = Convert.ToSingle(p.UmetnickoDelo.Cena ?? 0f);
+                p.UmetnickoDelo.Status = UmetnickoDeloStatus.Prodato; // ✅ prodaj tek na plaćanju
+            }
+
+            p.Status = PorudzbinaStatus.Placena;
+
             await _context.SaveChangesAsync();
             return true;
         }

@@ -12,10 +12,8 @@ namespace Artify.DTO_klase.RecenzijaDTO
 {
     public class KreirajRecenzijuDTO
     {
-        [Required]
-        public string KorisnikId { get; set; }
+        public string? KorisnikId { get; set; }
 
-        [Required]
         public int UmetnickoDeloId { get; set; } 
 
         [Required]

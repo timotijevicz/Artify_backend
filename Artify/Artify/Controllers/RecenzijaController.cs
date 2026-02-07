@@ -1,104 +1,83 @@
 ﻿using Artify.Interfaces;
-using Artify.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Artify.Repositories;
-using System.Security.Claims;
 using Artify.DTO_klase.RecenzijaDTO;
-
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Artify.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class RecenzijaController : ControllerBase
     {
-        private readonly IRecenzija _recenzijaService;
+        private readonly IRecenzija _recenzijaRepo;
 
-        public RecenzijaController(IRecenzija recenzijaService)
+        public RecenzijaController(IRecenzija recenzijaRepo)
         {
-            _recenzijaService = recenzijaService;
+            _recenzijaRepo = recenzijaRepo;
         }
 
-        // GET: api/Recenzija
         [HttpGet("VracaSveRecenzije")]
-        public async Task<IActionResult> GetSveRecenzije()
+        public async Task<IActionResult> GetSve()
         {
-            var recenzije = await _recenzijaService.GetSveRecenzijeAsync();
-            return Ok(recenzije);
+            var list = await _recenzijaRepo.GetSveRecenzijeAsync();
+            return Ok(list);
         }
 
-        // GET: api/Recenzija/{id}
         [HttpGet("RecenzijaPoID/{RecenzijaId}")]
-        public async Task<IActionResult> GetRecenzijaById(int RecenzijaId)
+        public async Task<IActionResult> GetById(int RecenzijaId)
         {
-            var recenzija = await _recenzijaService.GetRecenzijaByIdAsync(RecenzijaId);
-            if (recenzija == null)
-            {
-                return NotFound($"Recenzija sa ID-om {RecenzijaId} nije pronađena.");
-            }
-            return Ok(recenzija);
+            var rec = await _recenzijaRepo.GetRecenzijaByIdAsync(RecenzijaId);
+            if (rec == null) return NotFound();
+            return Ok(rec);
         }
 
-        // GET: api/Recenzija/UmetnickoDelo/{umetnickoDeloId}
         [HttpGet("RecenzijaZaUmetnickoDelo/{umetnickoDeloId}")]
-        public async Task<IActionResult> GetRecenzijeZaUmetnickoDelo(int umetnickoDeloId)
+        public async Task<IActionResult> GetZaDelo(int umetnickoDeloId)
         {
-            var recenzije = await _recenzijaService.GetRecenzijeZaUmetnickoDeloAsync(umetnickoDeloId);
-            return Ok(recenzije);
+            var list = await _recenzijaRepo.GetRecenzijeZaUmetnickoDeloAsync(umetnickoDeloId);
+            return Ok(list);
         }
 
-        // POST: api/Recenzija
+        [Authorize(Roles = "Kupac")]
         [HttpPost("KreiranjeRecenzije")]
-        public async Task<IActionResult> KreirajRecenziju([FromBody] KreirajRecenzijuDTO novaRecenzijaDTO)
+        public async Task<IActionResult> Kreiraj([FromBody] KreirajRecenzijuDTO dto)
         {
             if (!ModelState.IsValid)
-            {
                 return BadRequest(ModelState);
-            }
 
-            var recenzija = await _recenzijaService.KreirajRecenzijuAsync(novaRecenzijaDTO);
-            return CreatedAtAction(nameof(GetRecenzijaById), new { id = recenzija.RecenzijaId }, recenzija);
+            var korisnikId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (korisnikId == null)
+                return Unauthorized();
+
+            dto.KorisnikId = korisnikId;
+
+            var rec = await _recenzijaRepo.KreirajRecenzijuAsync(dto);
+            return Ok(rec);
         }
 
-        // PUT: api/Recenzija/{id}
+        [Authorize(Roles = "Kupac")]
         [HttpPut("AzuriranjeRecenzijePoID/{RecenzijaId}")]
-        public async Task<IActionResult> AzurirajRecenziju(int RecenzijaId, [FromBody] AzurirajRecenzijuDTO izmenjenaRecenzijaDTO)
+        public async Task<IActionResult> Azuriraj(
+            int RecenzijaId,
+            [FromBody] AzurirajRecenzijuDTO dto)
         {
             if (!ModelState.IsValid)
-            {
                 return BadRequest(ModelState);
-            }
 
-            if (RecenzijaId != izmenjenaRecenzijaDTO.RecenzijaId)
-            {
-                return BadRequest("ID iz URL-a mora odgovarati ID-u u telu zahteva.");
-            }
+            if (RecenzijaId != dto.RecenzijaId)
+                return BadRequest("ID u ruti i telu se ne poklapaju.");
 
-            try
-            {
-                var izmenjenaRecenzija = await _recenzijaService.AzurirajRecenzijuAsync(izmenjenaRecenzijaDTO);
-                return Ok(izmenjenaRecenzija);
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(ex.Message);
-            }
+            var rec = await _recenzijaRepo.AzurirajRecenzijuAsync(dto);
+            return Ok(rec);
         }
 
-        // DELETE: api/Recenzija/{id}
+        [Authorize(Roles = "Kupac")]
         [HttpDelete("BrisanjeRecenzije/{RecenzijaId}")]
-        public async Task<IActionResult> ObrisiRecenziju(int RecenzijaId)
+        public async Task<IActionResult> Obrisi(int RecenzijaId)
         {
-            var uspesnoObrisana = await _recenzijaService.ObrisiRecenzijuAsync(RecenzijaId);
-            if (!uspesnoObrisana)
-            {
-                return NotFound($"Recenzija sa ID-om {RecenzijaId} nije pronađena.");
-            }
-            return NoContent();
+            var ok = await _recenzijaRepo.ObrisiRecenzijuAsync(RecenzijaId);
+            return ok ? NoContent() : NotFound();
         }
     }
 }

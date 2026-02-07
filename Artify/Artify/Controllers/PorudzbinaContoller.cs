@@ -1,6 +1,9 @@
 ﻿using Artify.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+
 using Artify.DTO_klase.PorudzbinaDTO;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Artify.Controllers
 {
@@ -33,16 +36,25 @@ namespace Artify.Controllers
             return Ok(porudzbina);
         }
 
+        [Authorize(Roles = "Kupac")]
         [HttpPost("KreiraNovuPorudzbinu")]
         public async Task<IActionResult> CreatePorudzbina([FromBody] KreiranjePorudzbineDTO novaPorudzbinaDTO)
         {
+            // ✅ da ne pada validacija ako neko ostavi non-nullable u DTO
+            ModelState.Remove("KorisnikId");
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var korisnikId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(korisnikId))
+                return Unauthorized();
+
+            novaPorudzbinaDTO.KorisnikId = korisnikId;
+
             try
             {
-                var novaPorudzbina =
-                    await _porudzbinaService.CreatePorudzbinaAsync(novaPorudzbinaDTO);
+                var novaPorudzbina = await _porudzbinaService.CreatePorudzbinaAsync(novaPorudzbinaDTO);
 
                 return CreatedAtAction(
                     nameof(GetPorudzbinaById),
@@ -77,6 +89,31 @@ namespace Artify.Controllers
                 return NotFound(new { Poruka = ex.Message });
             }
         }
+
+        [Authorize(Roles = "Kupac")]
+        [HttpGet("MojePorudzbine")]
+        public async Task<IActionResult> GetMojePorudzbine()
+        {
+            var korisnikId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(korisnikId)) return Unauthorized();
+
+            var porudzbine = await _porudzbinaService.GetPorudzbineByKorisnikIdAsync(korisnikId);
+            return Ok(porudzbine);
+        }
+
+        [Authorize(Roles = "Kupac")]
+        [HttpPut("Plati/{porudzbinaId:int}")]
+        public async Task<IActionResult> Plati(int porudzbinaId)
+        {
+            var korisnikId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(korisnikId)) return Unauthorized();
+
+            var ok = await _porudzbinaService.PayAsync(porudzbinaId, korisnikId);
+            if (!ok) return NotFound(new { Poruka = "Porudžbina nije pronađena ili nije tvoja." });
+
+            return NoContent();
+        }
+
 
         [HttpDelete("BrisanjePorudzbine/{PorudzbinaId:int}")]
         public async Task<IActionResult> DeletePorudzbina(int PorudzbinaId)

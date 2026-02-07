@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Artify.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260201195641_Migracija")]
+    [Migration("20260206103300_Migracija")]
     partial class Migracija
     {
         /// <inheritdoc />
@@ -24,6 +24,34 @@ namespace Artify.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("Artify.Models.AukcijskaPonuda", b =>
+                {
+                    b.Property<int>("AukcijskaPonudaId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AukcijskaPonudaId"));
+
+                    b.Property<DateTime>("DatumKreiranja")
+                        .HasColumnType("datetime2");
+
+                    b.Property<float?>("Iznos")
+                        .HasColumnType("real");
+
+                    b.Property<string>("KupacId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UmetnickoDeloId")
+                        .HasColumnType("int");
+
+                    b.HasKey("AukcijskaPonudaId");
+
+                    b.HasIndex("UmetnickoDeloId", "Iznos");
+
+                    b.ToTable("AukcijskePonude");
+                });
 
             modelBuilder.Entity("Artify.Models.Favoriti", b =>
                 {
@@ -492,6 +520,17 @@ namespace Artify.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Artify.Models.AukcijskaPonuda", b =>
+                {
+                    b.HasOne("Artify.Models.UmetnickoDelo", "UmetnickoDelo")
+                        .WithMany()
+                        .HasForeignKey("UmetnickoDeloId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UmetnickoDelo");
                 });
 
             modelBuilder.Entity("Artify.Models.Favoriti", b =>

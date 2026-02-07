@@ -15,7 +15,6 @@ namespace Artify.DTO_klase.PorudzbinaDTO
         [Required]
         public int UmetnickoDeloId { get; set; }
 
-        [Required]
-        public string KorisnikId { get; set; }
+        public string? KorisnikId { get; set; }
     }
 }

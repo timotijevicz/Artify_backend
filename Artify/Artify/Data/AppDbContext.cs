@@ -21,6 +21,8 @@ namespace Artify.Data
         public DbSet<UmetnickoDelo> UmetnickaDela { get; set; }
         public DbSet<Umetnik> Umetnici { get; set; }
         public DbSet<Notifikacija> Notifikacije { get; set; }
+        public DbSet<AukcijskaPonuda> AukcijskePonude { get; set; } = null!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -76,12 +78,24 @@ namespace Artify.Data
                 .WithMany()
                 .HasForeignKey(f => f.UmetnickoDeloId)
                 .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<AukcijskaPonuda>()
+                .HasOne(p => p.UmetnickoDelo)
+                .WithMany() // ili .WithMany(d => d.AukcijskePonude) ako dodaš kolekciju u UmetnickoDelo
+                .HasForeignKey(p => p.UmetnickoDeloId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AukcijskaPonuda>()
+                .HasIndex(p => new { p.UmetnickoDeloId, p.Iznos });
+
+            modelBuilder.Entity<Porudzbina>()
+                .HasIndex(p => p.UmetnickoDeloId)
+                .IsUnique();
+
 
             SeedRoles(modelBuilder);
         }
 
         
-
         private void SeedRoles(ModelBuilder modelBuilder)
         {
             List<IdentityRole> roles = new List<IdentityRole>

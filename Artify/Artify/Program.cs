@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.Json.Serialization;
 using Artify.Data;
 using Artify.Models;
 using Artify.Interfaces;
@@ -10,15 +11,32 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// =======================
+// Kestrel – forsiraj HTTP/1.1
+// =======================
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ConfigureEndpointDefaults(lo =>
+    {
+        lo.Protocols = HttpProtocols.Http1;
+    });
+});
+
+// =======================
 // DbContext
+// =======================
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-// Identity (koristi tvoj Korisnik)
+// =======================
+// Identity
+// =======================
 builder.Services.AddIdentity<Korisnik, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -30,9 +48,9 @@ builder.Services.AddIdentity<Korisnik, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-//
-// ✅ KLJUČNO 1: Spreči cookie redirect na /Account/Login za API rute
-//
+// =======================
+// Cookie redirect FIX za API
+// =======================
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Events = new CookieAuthenticationEvents
@@ -60,9 +78,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
-//
-// ✅ KLJUČNO 2: JWT kao default auth + challenge (da [Authorize] radi preko Bearer)
-//
+// =======================
+// JWT Authentication
+// =======================
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -88,18 +106,16 @@ builder.Services.AddAuthentication(options =>
 
         ClockSkew = TimeSpan.Zero,
 
-        // ✅ KLJUČNO: da Roles rade sa tvojim claim-om u tokenu
         RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-
-        // ✅ preporučeno: da NameIdentifier radi stabilno
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
     };
 });
 
-// Authorization
 builder.Services.AddAuthorization();
 
+// =======================
 // CORS
+// =======================
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -110,16 +126,28 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Controllers
-builder.Services.AddControllers();
+// =======================
+// Controllers + IgnoreCycles
+// =======================
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 
-// DI: Repozitorijumi/Servisi
+// =======================
+// DI
+// =======================
 builder.Services.AddScoped<IKorisnik, KorisnikRepository>();
 builder.Services.AddScoped<IFavoriti, FavoritiRepository>();
+builder.Services.AddScoped<IRecenzija, RecenzijaRepository>();
+builder.Services.AddScoped<IPorudzbina, PorudzbinaRepository>();
 builder.Services.AddScoped<IUmetnickoDelo, UmetnickoDeloRepository>();
 builder.Services.AddScoped<IToken, TokenService>();
 
-// Swagger + Bearer
+// =======================
+// Swagger
+// =======================
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(option =>
 {
@@ -153,7 +181,9 @@ builder.Services.AddSwaggerGen(option =>
 
 var app = builder.Build();
 
-// Seed role + test korisnici
+// =======================
+// Seed (roles + test korisnici)
+// =======================
 using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Korisnik>>();
@@ -171,7 +201,13 @@ using (var scope = app.Services.CreateScope())
     await CreateUserIfNotExists(userManager, "admin@artify.com", "Admin123!", "Admin Artify", "Admin");
     await CreateUserIfNotExists(userManager, "korisnik@artify.com", "Korisnik123!", "Obican Korisnik", "Kupac");
 
-    var umetnikUser = await CreateUserIfNotExists(userManager, "artist@artify.com", "Artist123!", "Test Umetnik", "Umetnik");
+    var umetnikUser = await CreateUserIfNotExists(
+        userManager,
+        "artist@artify.com",
+        "Artist123!",
+        "Test Umetnik",
+        "Umetnik"
+    );
 
     if (umetnikUser != null)
     {
@@ -194,6 +230,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// =======================
+// Middleware
+// =======================
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -201,6 +240,19 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// wwwroot (ako postoji)
+app.UseStaticFiles();
+
+// ✅ Uploads folder (OVO TI JE FALILO)
+//app.UseStaticFiles(new StaticFileOptions
+//{
+//    FileProvider = new PhysicalFileProvider(
+//        Path.Combine(builder.Environment.ContentRootPath, "Uploads")
+//    ),
+//    RequestPath = "/uploads"
+//});
+
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
@@ -209,7 +261,9 @@ app.UseAuthorization();
 app.MapControllers();
 app.Run();
 
-// pomocna metoda
+// =======================
+// Helper
+// =======================
 static async Task<Korisnik?> CreateUserIfNotExists(
     UserManager<Korisnik> userManager,
     string email,
@@ -235,4 +289,3 @@ static async Task<Korisnik?> CreateUserIfNotExists(
     await userManager.AddToRoleAsync(user, role);
     return user;
 }
- 

@@ -13,5 +13,9 @@ namespace Artify.Interfaces
         Task<Porudzbina> CreatePorudzbinaAsync(KreiranjePorudzbineDTO NovaPorudzbinaDTO); // Kreiranje nove porudžbine sa DTO klasom
         Task UpdatePorudzbinaAsync(AzuriranjePorudzbineDTO IzmenaPorudzbineDTO); // Ažuriranje porudžbine sa DTO klasom
         Task<bool> DeletePorudzbinaAsync(int PorudzbinaId); // Brisanje porudžbine po ID-u
+        Task<List<Porudzbina>> GetPorudzbineByKorisnikIdAsync(string korisnikId);
+        Task<bool> PayAsync(int porudzbinaId, string korisnikId);
+
+
     }
 }

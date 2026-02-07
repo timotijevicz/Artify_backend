@@ -12,20 +12,20 @@ namespace Artify.DTO_klase.UmetnickoDeloDTO
     public class KreirajDeloZaAukcijuDTO
     {
         [Required]
-        public string Naziv { get; set; }
+        public string? Naziv { get; set; }
 
         [Required]
-        public string Opis { get; set; }
+        public string? Opis { get; set; }
 
         [Required]
-        public string Slika { get; set; }
+        public string? Slika { get; set; }
 
-        public string Tehnika { get; set; }
-        public string Stil { get; set; }
-        public string Dimenzije { get; set; }
+        public string? Tehnika { get; set; }
+        public string? Stil { get; set; }
+        public string? Dimenzije { get; set; }
 
         [Required]
-        public decimal PocetnaCenaAukcije { get; set; }
+        public decimal? PocetnaCenaAukcije { get; set; }
 
         [Required]
         public DateTime AukcijaZavrsava { get; set; }

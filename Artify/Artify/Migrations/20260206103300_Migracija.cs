@@ -246,6 +246,28 @@ namespace Artify.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "AukcijskePonude",
+                columns: table => new
+                {
+                    AukcijskaPonudaId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UmetnickoDeloId = table.Column<int>(type: "int", nullable: false),
+                    KupacId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Iznos = table.Column<float>(type: "real", nullable: true),
+                    DatumKreiranja = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AukcijskePonude", x => x.AukcijskaPonudaId);
+                    table.ForeignKey(
+                        name: "FK_AukcijskePonude_UmetnickaDela_UmetnickoDeloId",
+                        column: x => x.UmetnickoDeloId,
+                        principalTable: "UmetnickaDela",
+                        principalColumn: "UmetnickoDeloId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Favoriti",
                 columns: table => new
                 {
@@ -375,6 +397,11 @@ namespace Artify.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AukcijskePonude_UmetnickoDeloId_Iznos",
+                table: "AukcijskePonude",
+                columns: new[] { "UmetnickoDeloId", "Iznos" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Favoriti_KorisnikId",
                 table: "Favoriti",
                 column: "KorisnikId");
@@ -437,6 +464,9 @@ namespace Artify.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUserTokens");
+
+            migrationBuilder.DropTable(
+                name: "AukcijskePonude");
 
             migrationBuilder.DropTable(
                 name: "Favoriti");

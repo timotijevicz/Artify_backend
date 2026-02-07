@@ -1,16 +1,16 @@
 ﻿using Artify.Models;
-using Artify.Data;
+using Artify.DTO_klase.UmetnickoDeloDTO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Artify.DTO_klase.UmetnickoDeloDTO;
-
 
 namespace Artify.Interfaces
 {
     public interface IUmetnickoDelo
     {
         Task<IEnumerable<UmetnickoDelo>> GetAllArtworksAsync();
-        Task<UmetnickoDelo> GetArtworkByIdAsync(int umetnickoDeloId);
+
+        // može biti null (repo koristi FirstOrDefaultAsync)
+        Task<UmetnickoDelo?> GetArtworkByIdAsync(int umetnickoDeloId);
 
         Task<UmetnickoDelo> AddArtworkAsync(KreirajUmetnickoDeloDTO dto);
 
@@ -27,6 +27,9 @@ namespace Artify.Interfaces
 
         Task<IEnumerable<UmetnickoDelo>> SearchArtworksAsync(string keyword);
 
+        // rešava DodajNovoDelo i aukciju kad umetnik nema nijedno delo
+        Task<int?> GetUmetnikIdByKorisnikIdAsync(string korisnikId);
+
+        Task<bool> DeactivateArtworkAsync(int umetnickoDeloId, string korisnikId);
     }
 }
-

@@ -38,11 +38,18 @@ namespace Artify.Controllers
         [HttpGet("VracaUmetnikaPoID/{UmetnikId:int}")]
         public async Task<IActionResult> GetArtistById(int UmetnikId)
         {
-            var umetnik = await _umetnikService.GetArtistByIdAsync(UmetnikId);
-            if (umetnik == null)
-                return NotFound(new { Poruka = "Umetnik nije pronađen." });
+            try
+            {
+                var umetnik = await _umetnikService.GetArtistByIdAsync(UmetnikId);
+                if (umetnik == null)
+                    return NotFound(new { Poruka = "Umetnik nije pronađen." });
 
-            return Ok(umetnik);
+                return Ok(umetnik);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { ex.Message, ex.StackTrace });
+            }
         }
 
         /// <summary>

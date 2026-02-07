@@ -1,12 +1,8 @@
 ﻿using Artify.Interfaces;
 using Artify.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Artify.Data;
-using Microsoft.EntityFrameworkCore;
 using Artify.DTO_klase.RecenzijaDTO;
+using Microsoft.EntityFrameworkCore;
 
 namespace Artify.Repositories
 {
@@ -24,6 +20,7 @@ namespace Artify.Repositories
             return await _context.Recenzije
                 .Include(r => r.Korisnik)
                 .Include(r => r.UmetnickoDelo)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
@@ -40,12 +37,14 @@ namespace Artify.Repositories
             return await _context.Recenzije
                 .Where(r => r.UmetnickoDeloId == UmetnickoDeloId)
                 .Include(r => r.Korisnik)
+                .AsNoTracking()
+                .OrderByDescending(r => r.RecenzijaId)
                 .ToListAsync();
         }
 
         public async Task<Recenzija> KreirajRecenzijuAsync(KreirajRecenzijuDTO dto)
         {
-            var novaRecenzija = new Recenzija
+            var recenzija = new Recenzija
             {
                 KorisnikId = dto.KorisnikId,
                 UmetnickoDeloId = dto.UmetnickoDeloId,
@@ -53,24 +52,22 @@ namespace Artify.Repositories
                 Komentar = dto.Komentar
             };
 
-            _context.Recenzije.Add(novaRecenzija);
+            _context.Recenzije.Add(recenzija);
             await _context.SaveChangesAsync();
 
-            return novaRecenzija;
+            return recenzija;
         }
 
         public async Task<Recenzija> AzurirajRecenzijuAsync(AzurirajRecenzijuDTO dto)
         {
-            var recenzija = await _context.Recenzije.FindAsync(dto.RecenzijaId);
+            var recenzija = await _context.Recenzije
+                .FirstOrDefaultAsync(r => r.RecenzijaId == dto.RecenzijaId);
 
             if (recenzija == null)
                 throw new ArgumentException("Recenzija sa zadatim ID-om ne postoji.");
 
-            if (dto.NovaOcena.HasValue)
-                recenzija.Ocena = dto.NovaOcena.Value;
-
-            if (!string.IsNullOrWhiteSpace(dto.NoviKomentar))
-                recenzija.Komentar = dto.NoviKomentar;
+            recenzija.Ocena = dto.Ocena;       // int → int (nema nullable greške)
+            recenzija.Komentar = dto.Komentar;
 
             await _context.SaveChangesAsync();
             return recenzija;
@@ -78,16 +75,15 @@ namespace Artify.Repositories
 
         public async Task<bool> ObrisiRecenzijuAsync(int RecenzijaId)
         {
-            var recenzija = await _context.Recenzije.FindAsync(RecenzijaId);
+            var recenzija = await _context.Recenzije
+                .FirstOrDefaultAsync(r => r.RecenzijaId == RecenzijaId);
 
             if (recenzija == null)
                 return false;
 
             _context.Recenzije.Remove(recenzija);
             await _context.SaveChangesAsync();
-
             return true;
         }
     }
-
 }
