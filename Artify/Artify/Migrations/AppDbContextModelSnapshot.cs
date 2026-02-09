@@ -196,6 +196,9 @@ namespace Artify.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PorudzbinaId"));
 
+                    b.Property<bool>("Arhivirana")
+                        .HasColumnType("bit");
+
                     b.Property<float>("CenaUTrenutkuKupovine")
                         .HasColumnType("real");
 
@@ -216,7 +219,8 @@ namespace Artify.Migrations
 
                     b.HasIndex("KorisnikId");
 
-                    b.HasIndex("UmetnickoDeloId");
+                    b.HasIndex("UmetnickoDeloId")
+                        .IsUnique();
 
                     b.ToTable("Porudzbine");
                 });

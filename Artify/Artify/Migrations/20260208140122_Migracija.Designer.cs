@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Artify.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260206103300_Migracija")]
+    [Migration("20260208140122_Migracija")]
     partial class Migracija
     {
         /// <inheritdoc />
@@ -199,6 +199,9 @@ namespace Artify.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PorudzbinaId"));
 
+                    b.Property<bool>("Arhivirana")
+                        .HasColumnType("bit");
+
                     b.Property<float>("CenaUTrenutkuKupovine")
                         .HasColumnType("real");
 
@@ -219,7 +222,8 @@ namespace Artify.Migrations
 
                     b.HasIndex("KorisnikId");
 
-                    b.HasIndex("UmetnickoDeloId");
+                    b.HasIndex("UmetnickoDeloId")
+                        .IsUnique();
 
                     b.ToTable("Porudzbine");
                 });

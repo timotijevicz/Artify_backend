@@ -127,5 +127,18 @@ namespace Artify.Repositories
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<bool> ArchiveAsync(int porudzbinaId, string korisnikId)
+        {
+            var p = await _context.Porudzbine.FirstOrDefaultAsync(x => x.PorudzbinaId == porudzbinaId);
+            if (p == null) return false;
+            if (p.KorisnikId != korisnikId) return false;
+
+            if (p.Status != PorudzbinaStatus.Placena) return false; // samo placene
+            p.Arhivirana = true;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

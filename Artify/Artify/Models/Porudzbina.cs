@@ -19,6 +19,7 @@ namespace Artify.Models
 
         public string KorisnikId { get; set; }
         public virtual Korisnik Korisnik { get; set; }
+        public bool Arhivirana { get; set; } = false;
 
         public int UmetnickoDeloId { get; set; }
         public virtual UmetnickoDelo? UmetnickoDelo { get; set; }

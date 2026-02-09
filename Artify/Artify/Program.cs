@@ -12,7 +12,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +25,15 @@ builder.WebHost.ConfigureKestrel(options =>
         lo.Protocols = HttpProtocols.Http1;
     });
 });
+
+// =======================
+// DEBUG: proveri koji config i env se učitava
+// =======================
+Console.WriteLine($"ENV: {builder.Environment.EnvironmentName}");
+var jwtDbg = builder.Configuration.GetSection("Jwt");
+Console.WriteLine($"JWT Issuer: {jwtDbg["Issuer"]}");
+Console.WriteLine($"JWT Audience: {jwtDbg["Audience"]}");
+Console.WriteLine($"JWT Key length: {(jwtDbg["Key"]?.Length ?? 0)}");
 
 // =======================
 // DbContext
@@ -90,6 +98,8 @@ builder.Services.AddAuthentication(options =>
 {
     var jwtSettings = builder.Configuration.GetSection("Jwt");
 
+    options.IncludeErrorDetails = true;
+
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -107,7 +117,41 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero,
 
         RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-        NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+        // ✅ "name" je username/email; "nameidentifier" je user id
+        NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = ctx =>
+        {
+            var authHeader = ctx.Request.Headers.Authorization.ToString();
+            if (!string.IsNullOrWhiteSpace(authHeader))
+                Console.WriteLine($"➡️ Authorization header: {authHeader.Substring(0, Math.Min(authHeader.Length, 40))}...");
+            else
+                Console.WriteLine("➡️ Authorization header: (EMPTY)");
+
+            return Task.CompletedTask;
+        },
+
+        OnAuthenticationFailed = ctx =>
+        {
+            Console.WriteLine("❌ JWT auth FAILED");
+            Console.WriteLine(ctx.Exception.ToString());
+            return Task.CompletedTask;
+        },
+
+        OnTokenValidated = ctx =>
+        {
+            Console.WriteLine("✅ JWT token VALID");
+            return Task.CompletedTask;
+        },
+
+        OnChallenge = ctx =>
+        {
+            Console.WriteLine($"⚠️ JWT CHALLENGE: {ctx.Error} | {ctx.ErrorDescription}");
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -123,6 +167,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:3000")
               .AllowAnyHeader()
               .AllowAnyMethod();
+        // Ako ikad budeš slao cookies: .AllowCredentials();
     });
 });
 
@@ -136,6 +181,10 @@ builder.Services.AddControllers()
     });
 
 // =======================
+// ✅ PayPal uklonjeno (nema config sanity + nema HttpClient)
+// =======================
+
+// =======================
 // DI
 // =======================
 builder.Services.AddScoped<IKorisnik, KorisnikRepository>();
@@ -143,6 +192,8 @@ builder.Services.AddScoped<IFavoriti, FavoritiRepository>();
 builder.Services.AddScoped<IRecenzija, RecenzijaRepository>();
 builder.Services.AddScoped<IPorudzbina, PorudzbinaRepository>();
 builder.Services.AddScoped<IUmetnickoDelo, UmetnickoDeloRepository>();
+builder.Services.AddScoped<IUmetnik, UmetnikRepository>();
+
 builder.Services.AddScoped<IToken, TokenService>();
 
 // =======================
@@ -240,19 +291,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// wwwroot (ako postoji)
 app.UseStaticFiles();
 
-// ✅ Uploads folder (OVO TI JE FALILO)
-//app.UseStaticFiles(new StaticFileOptions
-//{
-//    FileProvider = new PhysicalFileProvider(
-//        Path.Combine(builder.Environment.ContentRootPath, "Uploads")
-//    ),
-//    RequestPath = "/uploads"
-//});
-
+// CORS pre auth
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();

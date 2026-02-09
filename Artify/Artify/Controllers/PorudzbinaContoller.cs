@@ -114,6 +114,20 @@ namespace Artify.Controllers
             return NoContent();
         }
 
+        [Authorize(Roles = "Kupac")]
+        [HttpPut("Arhiviraj/{porudzbinaId:int}")]
+        public async Task<IActionResult> Arhiviraj(int porudzbinaId)
+        {
+            var korisnikId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(korisnikId)) return Unauthorized();
+
+            var ok = await _porudzbinaService.ArchiveAsync(porudzbinaId, korisnikId);
+            if (!ok) return BadRequest(new { Poruka = "Ne možeš da arhiviraš ovu porudžbinu." });
+
+            return NoContent();
+        }
+
+
 
         [HttpDelete("BrisanjePorudzbine/{PorudzbinaId:int}")]
         public async Task<IActionResult> DeletePorudzbina(int PorudzbinaId)

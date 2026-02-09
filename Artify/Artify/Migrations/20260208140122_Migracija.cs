@@ -303,6 +303,7 @@ namespace Artify.Migrations
                     CenaUTrenutkuKupovine = table.Column<float>(type: "real", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     KorisnikId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Arhivirana = table.Column<bool>(type: "bit", nullable: false),
                     UmetnickoDeloId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -424,7 +425,8 @@ namespace Artify.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Porudzbine_UmetnickoDeloId",
                 table: "Porudzbine",
-                column: "UmetnickoDeloId");
+                column: "UmetnickoDeloId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Recenzije_KorisnikId",
