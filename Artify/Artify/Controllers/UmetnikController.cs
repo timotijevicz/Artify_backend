@@ -35,6 +35,7 @@ namespace Artify.Controllers
         /// <summary>
         /// Vraća jednog umetnika po ID-u.
         /// </summary>
+        [Authorize]
         [HttpGet("VracaUmetnikaPoID/{UmetnikId:int}")]
         public async Task<IActionResult> GetArtistById(int UmetnikId)
         {

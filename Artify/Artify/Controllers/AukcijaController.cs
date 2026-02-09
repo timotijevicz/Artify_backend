@@ -133,7 +133,8 @@ namespace Artify.Controllers
         [HttpPost("Finalize")]
         public async Task<IActionResult> Finalize([FromBody] FinalizeAukcijaDTO dto)
         {
-            if (dto == null || dto.UmetnickoDeloId <= 0) return BadRequest("Neispravan zahtev.");
+            if (dto == null || dto.UmetnickoDeloId <= 0)
+                return BadRequest("Neispravan zahtev.");
 
             await using var tx = await _db.Database.BeginTransactionAsync();
 
@@ -142,9 +143,25 @@ namespace Artify.Controllers
 
             if (delo == null) return NotFound("Delo ne postoji.");
 
-            // idempotent
+            // Ako je već finalizovano (NaAukciji == false), vrati stanje "koliko možeš"
+            // (front će posle svakako refreshovati delo i ponude)
             if (!delo.NaAukciji)
-                return Ok(new { poruka = "Aukcija je već finalizovana." });
+            {
+                // probaj da nađeš pobednika preko porudžbine (ako postoji)
+                var existingOrder = await _db.Porudzbine
+                    .AsNoTracking()
+                    .Where(x => x.UmetnickoDeloId == dto.UmetnickoDeloId)
+                    .Select(x => new { x.KorisnikId, x.CenaUTrenutkuKupovine })
+                    .FirstOrDefaultAsync();
+
+                return Ok(new
+                {
+                    poruka = "Aukcija je već finalizovana.",
+                    pobednikKorisnikId = existingOrder?.KorisnikId,
+                    PobednikKorisnikId = existingOrder?.KorisnikId,
+                    iznos = existingOrder?.CenaUTrenutkuKupovine
+                });
+            }
 
             var now = DateTime.UtcNow;
 
@@ -154,6 +171,7 @@ namespace Artify.Controllers
             if (now < delo.AukcijaZavrsava.Value)
                 return BadRequest("Aukcija još uvek traje.");
 
+            // Uzmi top ponudu
             var top = await _db.AukcijskePonude
                 .Where(p => p.UmetnickoDeloId == dto.UmetnickoDeloId && p.Iznos != null)
                 .OrderByDescending(p => p.Iznos)
@@ -161,18 +179,31 @@ namespace Artify.Controllers
                 .Select(p => new { p.KupacId, p.Iznos })
                 .FirstOrDefaultAsync();
 
-            // ugasi aukciju
+            // Ugasi aukciju u svakom slučaju
             delo.NaAukciji = false;
 
+            // NEMA PONUDA -> delo ostaje dostupno (nije prodato)
             if (top == null || top.Iznos == null)
             {
                 delo.TrenutnaCenaAukcije = null;
+                delo.Status = UmetnickoDeloStatus.Dostupno;
+
                 await _db.SaveChangesAsync();
                 await tx.CommitAsync();
-                return Ok(new { poruka = "Aukcija završena bez ponuda." });
+
+                return Ok(new
+                {
+                    poruka = "Aukcija završena bez ponuda.",
+                    pobednikKorisnikId = (string?)null,
+                    PobednikKorisnikId = (string?)null
+                });
             }
 
-            // idempotent: ne pravi duplu porudžbinu
+            // IMA POBEDNIKA -> prodato
+            var winnerId = top.KupacId;
+            var winAmount = top.Iznos.Value;
+
+            // ne pravi duplu porudžbinu
             var existsOrder = await _db.Porudzbine
                 .AnyAsync(x => x.UmetnickoDeloId == dto.UmetnickoDeloId);
 
@@ -181,16 +212,17 @@ namespace Artify.Controllers
                 var por = new Porudzbina
                 {
                     UmetnickoDeloId = dto.UmetnickoDeloId,
-                    KorisnikId = top.KupacId,
-                    CenaUTrenutkuKupovine = top.Iznos.Value,
+                    KorisnikId = winnerId,
+                    CenaUTrenutkuKupovine = winAmount,
                     Status = PorudzbinaStatus.NaCekanju,
-                    DatumKreiranja = DateTime.Now
+                    DatumKreiranja = DateTime.UtcNow // dosledno UTC
                 };
 
                 _db.Porudzbine.Add(por);
             }
 
-            delo.TrenutnaCenaAukcije = top.Iznos.Value;
+            delo.TrenutnaCenaAukcije = winAmount;
+            delo.Status = UmetnickoDeloStatus.Prodato;
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
@@ -198,9 +230,11 @@ namespace Artify.Controllers
             return Ok(new
             {
                 poruka = "Aukcija finalizovana. Porudžbina kreirana pobedniku.",
-                pobednikKupacId = top.KupacId,
-                iznos = top.Iznos.Value
+                pobednikKorisnikId = winnerId,      // <-- front pokušava ovo polje
+                PobednikKorisnikId = winnerId,      // <-- i ovu varijantu
+                iznos = winAmount
             });
         }
+
     }
 }
