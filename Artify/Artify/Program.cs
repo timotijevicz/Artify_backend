@@ -192,6 +192,7 @@ builder.Services.AddScoped<IFavoriti, FavoritiRepository>();
 builder.Services.AddScoped<IRecenzija, RecenzijaRepository>();
 builder.Services.AddScoped<IPorudzbina, PorudzbinaRepository>();
 builder.Services.AddScoped<IUmetnickoDelo, UmetnickoDeloRepository>();
+builder.Services.AddScoped<INotifikacija, NotifikacijaRepository>();
 builder.Services.AddScoped<IUmetnik, UmetnikRepository>();
 
 builder.Services.AddScoped<IToken, TokenService>();

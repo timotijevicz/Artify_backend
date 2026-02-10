@@ -14,5 +14,9 @@ namespace Artify.Interfaces
         Task<bool> UpdateArtistAsync(AzurirajUmetnikaDTO izmenaUmetnika); // Ažuriraj umetnika
         Task<bool> DeleteArtistAsync(int UmetnikId); // Obriši umetnika
         Task<bool> ApproveArtistAsync(int UmetnikId); // Odobri umetnika (admin funkcija)
+        Task<object?> GetByKorisnikIdAsync(string korisnikId);
+        Task<bool> UpdateMyArtistAsync(string korisnikId, AzurirajUmetnikaDTO dto);
+        Task<bool> SetMyArtistImageAsync(string korisnikId, string slikaUrl);
+
     }
 }

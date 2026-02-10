@@ -17,6 +17,11 @@ namespace Artify.Interfaces
         Task DeleteUserAsync(string KorisnikId); // Brisanje korisnika
         Task<string> RegisterArtistAsync(RegistracijaUmetnikaDTO dto);
         Task DeleteArtistAsync(string UmetnikId, IEnumerable<int> UmetnickaDelaIds); // Brisanje umetnika i dela
+        Task<object?> GetMyProfileAsync(string userId);
+        Task<string> ChangePasswordMyAsync(string userId, PromenaLozinkeKorisnikaDTO dto);
+        Task<string> ChangeEmailMyAsync(string userId, PromenaEmailKorisnikaDTO dto);
+        Task<string> DeleteMyAccountAsync(string userId, BrisanjeNalogaDTO dto);
+
         Task LogoutAsync(); // Odjava korisnika
     }
 }

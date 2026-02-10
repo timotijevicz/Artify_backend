@@ -1,9 +1,9 @@
 ﻿using Artify.Interfaces;
-using Artify.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Artify.DTO_klase.KorisnikDTO;
 using Artify.DTO_klase.UmetnikDTO;
+using System.Security.Claims;
 
 namespace Artify.Controllers
 {
@@ -18,7 +18,10 @@ namespace Artify.Controllers
             _korisnikService = korisnikService;
         }
 
-        // Dohvati sve korisnike
+        private string GetUserId() =>
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        [Authorize(Roles = "Admin")]
         [HttpGet("DohvatiSveKorisnike")]
         public async Task<IActionResult> GetAllUsers()
         {
@@ -26,7 +29,7 @@ namespace Artify.Controllers
             return Ok(korisnici);
         }
 
-        // Dohvati korisnika po ID-u (string jer IdentityUser.Id je string)
+        [Authorize(Roles = "Admin")]
         [HttpGet("DohvatiKorisnikaPoID/{korisnikId}")]
         public async Task<IActionResult> GetUserById(string korisnikId)
         {
@@ -40,7 +43,33 @@ namespace Artify.Controllers
             return Ok(korisnik);
         }
 
-        // Registracija korisnika
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("BrisanjeKorisnika/{korisnikId}")]
+        public async Task<IActionResult> DeleteUser(string korisnikId)
+        {
+            if (string.IsNullOrWhiteSpace(korisnikId))
+                return BadRequest("ID korisnika ne sme biti prazan.");
+
+            var korisnik = await _korisnikService.GetUserByIdAsync(korisnikId);
+            if (korisnik == null)
+                return NotFound("Korisnik ne postoji.");
+
+            await _korisnikService.DeleteUserAsync(korisnikId);
+            return NoContent();
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("BrisanjeUmetnika/{korisnikId}")]
+        public async Task<IActionResult> DeleteArtist(string korisnikId, [FromBody] IEnumerable<int> umetnickaDelaIds)
+        {
+            if (string.IsNullOrWhiteSpace(korisnikId))
+                return BadRequest("ID umetnika ne sme biti prazan.");
+
+            await _korisnikService.DeleteArtistAsync(korisnikId, umetnickaDelaIds ?? Enumerable.Empty<int>());
+            return NoContent();
+        }
+
+        [AllowAnonymous]
         [HttpPost("RegistracijaKorisnika")]
         public async Task<IActionResult> RegisterUser([FromBody] RegistracijaKorisnikaDTO registracijaDTO)
         {
@@ -55,11 +84,12 @@ namespace Artify.Controllers
             return BadRequest(result);
         }
 
-        //registracija umetnika
+        [AllowAnonymous]
         [HttpPost("RegistracijaUmetnika")]
         public async Task<IActionResult> RegisterArtist([FromBody] RegistracijaUmetnikaDTO dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             var result = await _korisnikService.RegisterArtistAsync(dto);
 
@@ -69,7 +99,7 @@ namespace Artify.Controllers
             return BadRequest(result);
         }
 
-        // Prijava korisnika
+        [AllowAnonymous]
         [HttpPost("PrijavaKorisnika")]
         [ProducesResponseType(typeof(LoginResponseDTO), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
@@ -86,14 +116,41 @@ namespace Artify.Controllers
             return Ok(result);
         }
 
-        // Promena lozinke
-        [HttpPost("PromenaLozinke")]
-        public async Task<IActionResult> ChangePassword([FromBody] PromenaLozinkeKorisnikaDTO promenaLozinkeDTO)
+        [Authorize]
+        [HttpPost("Odjava")]
+        public async Task<IActionResult> Logout()
+        {
+            await _korisnikService.LogoutAsync();
+            return Ok("Odjava uspešna.");
+        }
+
+        [Authorize]
+        [HttpGet("MojProfil")]
+        public async Task<IActionResult> GetMyProfile()
+        {
+            var userId = GetUserId();
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
+            var profil = await _korisnikService.GetMyProfileAsync(userId);
+            if (profil == null)
+                return NotFound("Korisnik nije pronađen.");
+
+            return Ok(profil);
+        }
+
+        [Authorize]
+        [HttpPost("PromenaLozinkeMojProfil")]
+        public async Task<IActionResult> ChangePasswordMyProfile([FromBody] PromenaLozinkeKorisnikaDTO dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _korisnikService.ChangePasswordAsync(promenaLozinkeDTO);
+            var userId = GetUserId();
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
+            var result = await _korisnikService.ChangePasswordMyAsync(userId, dto);
 
             if (result == "Lozinka uspešno promenjena.")
                 return Ok(result);
@@ -101,38 +158,58 @@ namespace Artify.Controllers
             return BadRequest(result);
         }
 
-        // Brisanje korisnika
-        [HttpDelete("BrisanjeKorisnika/{korisnikId}")]
-        public async Task<IActionResult> DeleteUser(string korisnikId)
+        [Authorize]
+        [HttpPost("PromenaEmailaMojProfil")]
+        public async Task<IActionResult> ChangeEmailMyProfile([FromBody] PromenaEmailKorisnikaDTO dto)
         {
-            if (string.IsNullOrWhiteSpace(korisnikId))
-                return BadRequest("ID korisnika ne sme biti prazan.");
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            var korisnik = await _korisnikService.GetUserByIdAsync(korisnikId);
-            if (korisnik == null)
-                return NotFound("Korisnik ne postoji.");
+            var userId = GetUserId();
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
 
-            await _korisnikService.DeleteUserAsync(korisnikId);
-            return NoContent();
+            var result = await _korisnikService.ChangeEmailMyAsync(userId, dto);
+
+            if (result == "Email uspešno promenjen.")
+                return Ok(result);
+
+            return BadRequest(result);
         }
 
-        // Brisanje umetnika i njegovih umetničkih dela
-        [HttpDelete("BrisanjeUmetnika/{korisnikId}")]
-        public async Task<IActionResult> DeleteArtist(string korisnikId, [FromBody] IEnumerable<int> umetnickaDelaIds)
+        [Authorize]
+        [HttpDelete("BrisanjeMogNaloga")]
+        public async Task<IActionResult> DeleteMyAccount([FromBody] BrisanjeNalogaDTO dto)
         {
-            if (string.IsNullOrWhiteSpace(korisnikId))
-                return BadRequest("ID umetnika ne sme biti prazan.");
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            await _korisnikService.DeleteArtistAsync(korisnikId, umetnickaDelaIds ?? Enumerable.Empty<int>());
-            return NoContent();
+            var userId = GetUserId();
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
+            var result = await _korisnikService.DeleteMyAccountAsync(userId, dto);
+
+            if (result == "Nalog obrisan.")
+                return Ok(result);
+
+            return BadRequest(result);
         }
 
-        // Odjava korisnika
-        [HttpPost("Odjava")]
-        public async Task<IActionResult> Logout()
+        [Authorize]
+        [HttpPost("PromenaLozinke")]
+        public async Task<IActionResult> ChangePassword([FromBody] PromenaLozinkeKorisnikaDTO promenaLozinkeDTO)
         {
-            await _korisnikService.LogoutAsync();
-            return Ok("Odjava uspešna.");
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            
+            var result = await _korisnikService.ChangePasswordAsync(promenaLozinkeDTO);
+
+            if (result == "Lozinka uspešno promenjena.")
+                return Ok(result);
+
+            return BadRequest(result);
         }
     }
 }

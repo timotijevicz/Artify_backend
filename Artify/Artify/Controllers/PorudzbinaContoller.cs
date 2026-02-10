@@ -40,7 +40,6 @@ namespace Artify.Controllers
         [HttpPost("KreiraNovuPorudzbinu")]
         public async Task<IActionResult> CreatePorudzbina([FromBody] KreiranjePorudzbineDTO novaPorudzbinaDTO)
         {
-            // ✅ da ne pada validacija ako neko ostavi non-nullable u DTO
             ModelState.Remove("KorisnikId");
 
             if (!ModelState.IsValid)

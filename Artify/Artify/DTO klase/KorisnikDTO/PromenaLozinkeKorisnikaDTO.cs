@@ -11,19 +11,15 @@ namespace Artify.DTO_klase.KorisnikDTO
 {
     public class PromenaLozinkeKorisnikaDTO
     {
-        [Required]
-        public int KorisnikId { get; set; }
+        [System.ComponentModel.DataAnnotations.Required]
+        public string TrenutnaLozinka { get; set; } = string.Empty;
 
-        [Required]
-        public string TrenutnaLozinka { get; set; }
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(20, MinimumLength = 6)]
+        public string NovaLozinka { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(20, MinimumLength = 6)]
-        public string NovaLozinka { get; set; }
-
-        [Required]
-        [StringLength(20, MinimumLength = 6)]
-        [Compare("NovaLozinka")]
-        public string PotvrdaNoveLozinke { get; set; }
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.Compare("NovaLozinka")]
+        public string PotvrdaNoveLozinke { get; set; } = string.Empty;
     }
 }

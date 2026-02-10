@@ -23,9 +23,6 @@ namespace Artify.Controllers
             _notifikacijaService = notifikacijaService;
         }
 
-        /// <summary>
-        /// Vraća sve notifikacije za određenog korisnika.
-        /// </summary>
         [HttpGet("SveNotifikacije/{KorisnikId}")]
         public async Task<IActionResult> GetAllNotifications(string KorisnikId)
         {
@@ -33,9 +30,6 @@ namespace Artify.Controllers
             return Ok(notifikacije);
         }
 
-        /// <summary>
-        /// Vraća jednu notifikaciju po ID-u.
-        /// </summary>
         [HttpGet("{NotifikacijaId:int}")]
         public async Task<IActionResult> GetNotificationById(int NotifikacijaId)
         {
@@ -46,9 +40,6 @@ namespace Artify.Controllers
             return Ok(notifikacija);
         }
 
-        /// <summary>
-        /// Kreira novu notifikaciju.
-        /// </summary>
         [HttpPost("KreirajNotifikaciju")]
         public async Task<IActionResult> CreateNotification([FromBody] KreirajNotifikacijuDTO novaNotifikacija)
         {
@@ -59,25 +50,6 @@ namespace Artify.Controllers
             return CreatedAtAction(nameof(GetNotificationById), new { NotifikacijaId = notifikacija.NotifikacijaId }, notifikacija);
         }
 
-        /// <summary>
-        /// Ažurira notifikaciju po ID-u.
-        /// </summary>
-        [HttpPut("AzurirajNotifikaciju")]
-        public async Task<IActionResult> UpdateNotification([FromBody] AzurirajNotifikacijuDTO izmenaNotifikacije)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var uspeh = await _notifikacijaService.UpdateNotificationAsync(izmenaNotifikacije);
-            if (!uspeh)
-                return NotFound(new { Poruka = "Notifikacija nije pronađena." });
-
-            return NoContent();
-        }
-
-        /// <summary>
-        /// Briše notifikaciju po ID-u.
-        /// </summary>
         [HttpDelete("ObrisiNotifikaciju/{NotifikacijaId}")]
         public async Task<IActionResult> DeleteNotification(int NotifikacijaId)
         {

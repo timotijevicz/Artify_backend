@@ -12,7 +12,6 @@ namespace Artify.DTO_klase.UmetnikDTO
 {
     public class AzurirajUmetnikaDTO
     {
-        [Required]
         public int? UmetnikId { get; set; }
 
         [StringLength(500)]
@@ -21,6 +20,7 @@ namespace Artify.DTO_klase.UmetnikDTO
         public string? Stil { get; set; }
         public string? Specijalizacija { get; set; }
         public string? SlikaUrl { get; set; }
+        public string? Grad { get; set; }
 
         public bool? IsApproved { get; set; }
         public bool? IsAvailable { get; set; }

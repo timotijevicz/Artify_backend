@@ -17,6 +17,12 @@ namespace Artify.Mappers
             CreateMap<LoginResponseDTO, Korisnik>();
             CreateMap<Korisnik, LoginResponseDTO>();
 
+            CreateMap<BrisanjeNalogaDTO, Korisnik>();
+            CreateMap<Korisnik, BrisanjeNalogaDTO>();
+
+            CreateMap<PromenaEmailKorisnikaDTO, Korisnik>();
+            CreateMap<Korisnik, PromenaEmailKorisnikaDTO>();
+
             CreateMap<UserDTO, Korisnik>();
             CreateMap<Korisnik, UserDTO>();
         }
