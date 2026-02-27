@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,7 +61,7 @@ else
 {
     Console.WriteLine("DB provider: MySQL");
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseMySql(cs, ServerVersion.AutoDetect(cs)));
+    options.UseMySql(cs, new MySqlServerVersion(new Version(8, 0, 36))));
 }
 
 // =======================
