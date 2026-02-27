@@ -117,7 +117,6 @@ builder.Services.AddAuthentication(options =>
 {
     var jwtSettings = builder.Configuration.GetSection("Jwt");
 
-    // U produkciji ne treba IncludeErrorDetails
     options.IncludeErrorDetails = builder.Environment.IsDevelopment();
 
     options.TokenValidationParameters = new TokenValidationParameters
@@ -140,7 +139,6 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
     };
 
-    // DEBUG logovi samo u Development
     if (builder.Environment.IsDevelopment())
     {
         options.Events = new JwtBearerEvents
@@ -170,19 +168,22 @@ builder.Services.AddAuthorization();
 // =======================
 // CORS (dozvoli React domen)
 // =======================
-// 1) Lokalno: http://localhost:3000
-// 2) Produkcija: tvoj Railway frontend domen
+// Produkcija: Railway frontend domen
+// Lokalno: CRA(3000) / Vite(5173)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
+                "https://artifyfrontend-production.up.railway.app",
                 "http://localhost:3000",
-                "https://artifyfrontend-production.up.railway.app"
+                "http://localhost:5173",
+                "https://localhost:3000"
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
         // Ako ikad budeš slao cookies: .AllowCredentials();
+        // (Ako koristiš AllowCredentials, onda NE SME AllowAnyOrigin)
     });
 });
 
@@ -253,7 +254,7 @@ builder.Services.AddSwaggerGen(option =>
 var app = builder.Build();
 
 // =======================
-// Migracije + Seed (samo u Development!)
+// Migracije + Seed (Seed samo u Development!)
 // =======================
 using (var scope = app.Services.CreateScope())
 {
@@ -318,7 +319,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-app.UseCors("AllowFrontend");
+app.UseRouting();                 // ✅ bitno za CORS i endpoint routing
+
+app.UseCors("AllowFrontend");     // ✅ pre auth/authorization
 
 app.UseAuthentication();
 app.UseAuthorization();
