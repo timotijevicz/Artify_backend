@@ -14,7 +14,6 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,8 +56,9 @@ if (isSqlServerLocalDb)
 }
 else
 {
+    // Pomelo MySQL provider
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseMySql(cs, new MySqlServerVersion(new Version(8, 0, 36))));
+        options.UseMySql(cs, ServerVersion.AutoDetect(cs)));
 }
 
 // =======================
@@ -166,14 +166,16 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 // =======================
-// CORS (dozvoli React domen)
+// CORS (RAILWAY + React) — ROBUST
 // =======================
-// Produkcija: Railway frontend domen
-// Lokalno: CRA(3000) / Vite(5173)
+// Ovo rešava “No Access-Control-Allow-Origin” i preflight probleme.
+// 1) Najbezbednije za produkciju: WithOrigins(...)
+// 2) Ako i dalje ne radi, privremeno koristi SetIsOriginAllowed(_ => true)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
+        // ✅ PRODUKCIJA + LOKALNO
         policy.WithOrigins(
                 "https://artifyfrontend-production.up.railway.app",
                 "http://localhost:3000",
@@ -182,8 +184,9 @@ builder.Services.AddCors(options =>
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
-        // Ako ikad budeš slao cookies: .AllowCredentials();
-        // (Ako koristiš AllowCredentials, onda NE SME AllowAnyOrigin)
+
+        // Ako ikad budeš slao cookies:
+        // .AllowCredentials();
     });
 });
 
@@ -308,7 +311,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // =======================
-// Middleware
+// Middleware — REDOSLED JE KLJUČ
 // =======================
 if (app.Environment.IsDevelopment())
 {
@@ -316,12 +319,30 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// ⚠️ Railway već terminira HTTPS. Preflight (OPTIONS) nekad pukne na redirect.
+// Privremeno drži HTTPS redirection samo u dev dok ne potvrdiš da je sve OK.
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseStaticFiles();
 
-app.UseRouting();                 // ✅ bitno za CORS i endpoint routing
+app.UseRouting();
 
-app.UseCors("AllowFrontend");     // ✅ pre auth/authorization
+// ✅ CORS mora pre auth i pre endpointa
+app.UseCors("AllowFrontend");
+
+// ✅ Eksplicitno odradi OPTIONS preflight za sve
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsOptions(context.Request.Method))
+    {
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        return;
+    }
+    await next();
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
