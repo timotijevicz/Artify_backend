@@ -19,6 +19,15 @@ using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 // =======================
+// Railway PORT binding (bitno za deploy)
+// =======================
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
+// =======================
 // Kestrel – forsiraj HTTP/1.1
 // =======================
 builder.WebHost.ConfigureKestrel(options =>
@@ -30,19 +39,9 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // =======================
-// DEBUG: proveri koji config i env se učitava
-// =======================
-Console.WriteLine($"ENV: {builder.Environment.EnvironmentName}");
-var jwtDbg = builder.Configuration.GetSection("Jwt");
-Console.WriteLine($"JWT Issuer: {jwtDbg["Issuer"]}");
-Console.WriteLine($"JWT Audience: {jwtDbg["Audience"]}");
-Console.WriteLine($"JWT Key length: {(jwtDbg["Key"]?.Length ?? 0)}");
-
-// =======================
 // DbContext (AUTO: LocalDB -> SQL Server, ostalo -> MySQL)
 // =======================
 var cs = builder.Configuration.GetConnectionString("DefaultConnection");
-
 if (string.IsNullOrWhiteSpace(cs))
     throw new InvalidOperationException("DefaultConnection nije podešen.");
 
@@ -53,15 +52,13 @@ var isSqlServerLocalDb =
 
 if (isSqlServerLocalDb)
 {
-    Console.WriteLine("DB provider: SQL Server (LocalDB)");
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseSqlServer(cs));
 }
 else
 {
-    Console.WriteLine("DB provider: MySQL");
     builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(cs, new MySqlServerVersion(new Version(8, 0, 36))));
+        options.UseMySql(cs, new MySqlServerVersion(new Version(8, 0, 36))));
 }
 
 // =======================
@@ -120,7 +117,8 @@ builder.Services.AddAuthentication(options =>
 {
     var jwtSettings = builder.Configuration.GetSection("Jwt");
 
-    options.IncludeErrorDetails = true;
+    // U produkciji ne treba IncludeErrorDetails
+    options.IncludeErrorDetails = builder.Environment.IsDevelopment();
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -139,56 +137,51 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero,
 
         RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-        // "name" je username/email; "nameidentifier" je user id
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
     };
 
-    options.Events = new JwtBearerEvents
+    // DEBUG logovi samo u Development
+    if (builder.Environment.IsDevelopment())
     {
-        OnMessageReceived = ctx =>
+        options.Events = new JwtBearerEvents
         {
-            var authHeader = ctx.Request.Headers.Authorization.ToString();
-            if (!string.IsNullOrWhiteSpace(authHeader))
-                Console.WriteLine($"➡️ Authorization header: {authHeader.Substring(0, Math.Min(authHeader.Length, 40))}...");
-            else
-                Console.WriteLine("➡️ Authorization header: (EMPTY)");
-
-            return Task.CompletedTask;
-        },
-
-        OnAuthenticationFailed = ctx =>
-        {
-            Console.WriteLine("❌ JWT auth FAILED");
-            Console.WriteLine(ctx.Exception.ToString());
-            return Task.CompletedTask;
-        },
-
-        OnTokenValidated = ctx =>
-        {
-            Console.WriteLine("✅ JWT token VALID");
-            return Task.CompletedTask;
-        },
-
-        OnChallenge = ctx =>
-        {
-            Console.WriteLine($"⚠️ JWT CHALLENGE: {ctx.Error} | {ctx.ErrorDescription}");
-            return Task.CompletedTask;
-        }
-    };
+            OnAuthenticationFailed = ctx =>
+            {
+                Console.WriteLine("❌ JWT auth FAILED");
+                Console.WriteLine(ctx.Exception.ToString());
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = ctx =>
+            {
+                Console.WriteLine("✅ JWT token VALID");
+                return Task.CompletedTask;
+            },
+            OnChallenge = ctx =>
+            {
+                Console.WriteLine($"⚠️ JWT CHALLENGE: {ctx.Error} | {ctx.ErrorDescription}");
+                return Task.CompletedTask;
+            }
+        };
+    }
 });
 
 builder.Services.AddAuthorization();
 
 // =======================
-// CORS
+// CORS (dozvoli React domen)
 // =======================
+// 1) Lokalno: http://localhost:3000
+// 2) Produkcija: tvoj Railway frontend domen
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy.WithOrigins(
+                "http://localhost:3000",
+                "https://artifyfrontend-production.up.railway.app"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
         // Ako ikad budeš slao cookies: .AllowCredentials();
     });
 });
@@ -221,7 +214,6 @@ builder.Services.AddScoped<IPorudzbina, PorudzbinaRepository>();
 builder.Services.AddScoped<IUmetnickoDelo, UmetnickoDeloRepository>();
 builder.Services.AddScoped<INotifikacija, NotifikacijaRepository>();
 builder.Services.AddScoped<IUmetnik, UmetnikRepository>();
-
 builder.Services.AddScoped<IToken, TokenService>();
 
 // =======================
@@ -261,54 +253,55 @@ builder.Services.AddSwaggerGen(option =>
 var app = builder.Build();
 
 // =======================
-// Migracije + Seed (roles + test korisnici)
+// Migracije + Seed (samo u Development!)
 // =======================
 using (var scope = app.Services.CreateScope())
 {
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Korisnik>>();
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // Osiguraj da DB postoji + tabele (migrations)
     await dbContext.Database.MigrateAsync();
 
-    // Seed roles + users
-    string[] roles = { "Admin", "Umetnik", "Kupac" };
-
-    foreach (var role in roles)
+    if (app.Environment.IsDevelopment())
     {
-        if (!await roleManager.RoleExistsAsync(role))
-            await roleManager.CreateAsync(new IdentityRole(role));
-    }
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Korisnik>>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    await CreateUserIfNotExists(userManager, "admin@artify.com", "Admin123!", "Admin Artify", "Admin");
-    await CreateUserIfNotExists(userManager, "korisnik@artify.com", "Korisnik123!", "Obican Korisnik", "Kupac");
+        string[] roles = { "Admin", "Umetnik", "Kupac" };
 
-    var umetnikUser = await CreateUserIfNotExists(
-        userManager,
-        "artist@artify.com",
-        "Artist123!",
-        "Test Umetnik",
-        "Umetnik"
-    );
-
-    if (umetnikUser != null)
-    {
-        var postoji = await dbContext.Umetnici.AnyAsync(u => u.KorisnikId == umetnikUser.Id);
-        if (!postoji)
+        foreach (var role in roles)
         {
-            dbContext.Umetnici.Add(new Umetnik
-            {
-                KorisnikId = umetnikUser.Id,
-                Biografija = "Test umetnik za razvoj.",
-                Tehnika = "Digital art",
-                Stil = "Modern",
-                Specijalizacija = "Ilustracije",
-                IsApproved = true,
-                IsAvailable = true
-            });
+            if (!await roleManager.RoleExistsAsync(role))
+                await roleManager.CreateAsync(new IdentityRole(role));
+        }
 
-            await dbContext.SaveChangesAsync();
+        await CreateUserIfNotExists(userManager, "admin@artify.com", "Admin123!", "Admin Artify", "Admin");
+        await CreateUserIfNotExists(userManager, "korisnik@artify.com", "Korisnik123!", "Obican Korisnik", "Kupac");
+
+        var umetnikUser = await CreateUserIfNotExists(
+            userManager,
+            "artist@artify.com",
+            "Artist123!",
+            "Test Umetnik",
+            "Umetnik"
+        );
+
+        if (umetnikUser != null)
+        {
+            var postoji = await dbContext.Umetnici.AnyAsync(u => u.KorisnikId == umetnikUser.Id);
+            if (!postoji)
+            {
+                dbContext.Umetnici.Add(new Umetnik
+                {
+                    KorisnikId = umetnikUser.Id,
+                    Biografija = "Test umetnik za razvoj.",
+                    Tehnika = "Digital art",
+                    Stil = "Modern",
+                    Specijalizacija = "Ilustracije",
+                    IsApproved = true,
+                    IsAvailable = true
+                });
+
+                await dbContext.SaveChangesAsync();
+            }
         }
     }
 }
@@ -325,21 +318,18 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-// CORS pre auth
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// GraphQL endpoint
 app.MapGraphQL("/graphql");
 
 app.Run();
 
 // =======================
-// Helper
+// Helper (seed samo za dev)
 // =======================
 static async Task<Korisnik?> CreateUserIfNotExists(
     UserManager<Korisnik> userManager,
