@@ -19,8 +19,9 @@ var builder = WebApplication.CreateBuilder(args);
 // =======================
 // Railway PORT binding (bitno za deploy)
 // =======================
+// Railway u praksi prosleđuje PORT (često 8080). Najsigurnije je da slušaš baš taj port.
 var port = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrEmpty(port))
+if (!string.IsNullOrWhiteSpace(port))
 {
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
@@ -110,6 +111,7 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     var jwtSettings = builder.Configuration.GetSection("Jwt");
+
     options.IncludeErrorDetails = builder.Environment.IsDevelopment();
 
     options.TokenValidationParameters = new TokenValidationParameters
@@ -131,12 +133,35 @@ builder.Services.AddAuthentication(options =>
         RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
     };
+
+    if (builder.Environment.IsDevelopment())
+    {
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                Console.WriteLine("❌ JWT auth FAILED");
+                Console.WriteLine(ctx.Exception);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = ctx =>
+            {
+                Console.WriteLine("✅ JWT token VALID");
+                return Task.CompletedTask;
+            },
+            OnChallenge = ctx =>
+            {
+                Console.WriteLine($"⚠️ JWT CHALLENGE: {ctx.Error} | {ctx.ErrorDescription}");
+                return Task.CompletedTask;
+            }
+        };
+    }
 });
 
 builder.Services.AddAuthorization();
 
 // =======================
-// CORS (RAILWAY + React)
+// CORS (dozvoli React domen)
 // =======================
 builder.Services.AddCors(options =>
 {
@@ -149,7 +174,7 @@ builder.Services.AddCors(options =>
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
-        // Ne koristi AllowCredentials dok god si na Bearer tokenu
+        // Ako ikad budeš slao cookies: .AllowCredentials();
     });
 });
 
@@ -220,8 +245,10 @@ builder.Services.AddSwaggerGen(option =>
 var app = builder.Build();
 
 // =======================
-// Migracije + Seed (Seed samo u Development!)
+// Migracije + Seed
 // =======================
+// Migracije možeš ostaviti u prod ako rade (kod tebe po logu rade).
+// Seed ostaje samo u Development.
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -274,31 +301,32 @@ using (var scope = app.Services.CreateScope())
 }
 
 // =======================
-// Middleware — REDOSLED JE KLJUČ
+// Middleware — redosled
 // =======================
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
 
-// Na Railway obično nema potrebe za UseHttpsRedirection (TLS terminira proxy).
-// Drži samo u dev da ne pravi probleme sa OPTIONS redirectom.
-if (app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+// Swagger uključen i u Production (da možeš da testiraš na Railway).
+// Ako hoćeš da ga gasiš kasnije: stavi uslov preko ENV npr. ENABLE_SWAGGER=true.
+app.UseSwagger();
+app.UseSwaggerUI();
 
+// Railway već terminira HTTPS, ali ovo obično ne smeta.
+// Ako primetiš probleme sa OPTIONS redirectom, možeš ga držati samo u dev.
+app.UseHttpsRedirection();
+
+// Ove warninge ignoriši na Railway (wwwroot možda nemaš).
 app.UseStaticFiles();
 
 app.UseRouting();
 
-// ✅ Primeni CORS globalno
 app.UseCors("AllowFrontend");
 
-// ✅ Ovo je “killer feature”: hvata SVE preflight OPTIONS i doda CORS headere
+// Catch-all preflight handler (pomaže kad browser šalje OPTIONS)
 app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.NoContent())
    .RequireCors("AllowFrontend");
+
+// Health + root da ne dobijaš 405 u browseru
+app.MapGet("/", () => Results.Ok("Artify backend is running")).RequireCors("AllowFrontend");
+app.MapGet("/health", () => Results.Ok("ok")).RequireCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
