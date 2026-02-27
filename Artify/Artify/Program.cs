@@ -38,13 +38,30 @@ Console.WriteLine($"JWT Audience: {jwtDbg["Audience"]}");
 Console.WriteLine($"JWT Key length: {(jwtDbg["Key"]?.Length ?? 0)}");
 
 // =======================
-// DbContext
+// DbContext (AUTO: LocalDB -> SQL Server, ostalo -> MySQL)
 // =======================
 var cs = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(cs, ServerVersion.AutoDetect(cs))
-);
+if (string.IsNullOrWhiteSpace(cs))
+    throw new InvalidOperationException("DefaultConnection nije podešen.");
+
+var isSqlServerLocalDb =
+    cs.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) ||
+    cs.Contains("mssqllocaldb", StringComparison.OrdinalIgnoreCase) ||
+    cs.Contains("MSSQLLocalDB", StringComparison.OrdinalIgnoreCase);
+
+if (isSqlServerLocalDb)
+{
+    Console.WriteLine("DB provider: SQL Server (LocalDB)");
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(cs));
+}
+else
+{
+    Console.WriteLine("DB provider: MySQL");
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseMySql(cs, ServerVersion.AutoDetect(cs)));
+}
 
 // =======================
 // Identity
@@ -121,7 +138,7 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero,
 
         RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-        // ✅ "name" je username/email; "nameidentifier" je user id
+        // "name" je username/email; "nameidentifier" je user id
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
     };
 
@@ -185,7 +202,7 @@ builder.Services.AddControllers()
     });
 
 // =======================
-// ✅ GraphQL (HotChocolate)
+// GraphQL (HotChocolate)
 // =======================
 builder.Services
     .AddGraphQLServer()
@@ -243,7 +260,7 @@ builder.Services.AddSwaggerGen(option =>
 var app = builder.Build();
 
 // =======================
-// ✅ Migracije + Seed (roles + test korisnici)
+// Migracije + Seed (roles + test korisnici)
 // =======================
 using (var scope = app.Services.CreateScope())
 {
@@ -251,10 +268,10 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // 1) ✅ Osiguraj da DB postoji + tabele (migrations)
+    // Osiguraj da DB postoji + tabele (migrations)
     await dbContext.Database.MigrateAsync();
 
-    // 2) Seed roles + users
+    // Seed roles + users
     string[] roles = { "Admin", "Umetnik", "Kupac" };
 
     foreach (var role in roles)
@@ -315,7 +332,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// ✅ GraphQL endpoint
+// GraphQL endpoint
 app.MapGraphQL("/graphql");
 
 app.Run();
