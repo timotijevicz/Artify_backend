@@ -6,7 +6,6 @@ using Artify.Interfaces;
 using Artify.Repositories;
 using Artify.Token;
 using Artify.GraphQL;
-using HotChocolate.AspNetCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -31,10 +30,7 @@ if (!string.IsNullOrEmpty(port))
 // =======================
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ConfigureEndpointDefaults(lo =>
-    {
-        lo.Protocols = HttpProtocols.Http1;
-    });
+    options.ConfigureEndpointDefaults(lo => { lo.Protocols = HttpProtocols.Http1; });
 });
 
 // =======================
@@ -51,12 +47,10 @@ var isSqlServerLocalDb =
 
 if (isSqlServerLocalDb)
 {
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(cs));
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(cs));
 }
 else
 {
-    // Pomelo MySQL provider
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseMySql(cs, ServerVersion.AutoDetect(cs)));
 }
@@ -116,7 +110,6 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     var jwtSettings = builder.Configuration.GetSection("Jwt");
-
     options.IncludeErrorDetails = builder.Environment.IsDevelopment();
 
     options.TokenValidationParameters = new TokenValidationParameters
@@ -138,55 +131,25 @@ builder.Services.AddAuthentication(options =>
         RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
     };
-
-    if (builder.Environment.IsDevelopment())
-    {
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = ctx =>
-            {
-                Console.WriteLine("❌ JWT auth FAILED");
-                Console.WriteLine(ctx.Exception.ToString());
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = ctx =>
-            {
-                Console.WriteLine("✅ JWT token VALID");
-                return Task.CompletedTask;
-            },
-            OnChallenge = ctx =>
-            {
-                Console.WriteLine($"⚠️ JWT CHALLENGE: {ctx.Error} | {ctx.ErrorDescription}");
-                return Task.CompletedTask;
-            }
-        };
-    }
 });
 
 builder.Services.AddAuthorization();
 
 // =======================
-// CORS (RAILWAY + React) — ROBUST
+// CORS (RAILWAY + React)
 // =======================
-// Ovo rešava “No Access-Control-Allow-Origin” i preflight probleme.
-// 1) Najbezbednije za produkciju: WithOrigins(...)
-// 2) Ako i dalje ne radi, privremeno koristi SetIsOriginAllowed(_ => true)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        // ✅ PRODUKCIJA + LOKALNO
         policy.WithOrigins(
                 "https://artifyfrontend-production.up.railway.app",
                 "http://localhost:3000",
-                "http://localhost:5173",
-                "https://localhost:3000"
+                "http://localhost:5173"
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
-
-        // Ako ikad budeš slao cookies:
-        // .AllowCredentials();
+        // Ne koristi AllowCredentials dok god si na Bearer tokenu
     });
 });
 
@@ -319,8 +282,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// ⚠️ Railway već terminira HTTPS. Preflight (OPTIONS) nekad pukne na redirect.
-// Privremeno drži HTTPS redirection samo u dev dok ne potvrdiš da je sve OK.
+// Na Railway obično nema potrebe za UseHttpsRedirection (TLS terminira proxy).
+// Drži samo u dev da ne pravi probleme sa OPTIONS redirectom.
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -330,19 +293,12 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// ✅ CORS mora pre auth i pre endpointa
+// ✅ Primeni CORS globalno
 app.UseCors("AllowFrontend");
 
-// ✅ Eksplicitno odradi OPTIONS preflight za sve
-app.Use(async (context, next) =>
-{
-    if (HttpMethods.IsOptions(context.Request.Method))
-    {
-        context.Response.StatusCode = StatusCodes.Status204NoContent;
-        return;
-    }
-    await next();
-});
+// ✅ Ovo je “killer feature”: hvata SVE preflight OPTIONS i doda CORS headere
+app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.NoContent())
+   .RequireCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
