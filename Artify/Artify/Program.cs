@@ -5,13 +5,15 @@ using Artify.Models;
 using Artify.Interfaces;
 using Artify.Repositories;
 using Artify.Token;
+using Artify.GraphQL;
+using HotChocolate.AspNetCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -181,8 +183,13 @@ builder.Services.AddControllers()
     });
 
 // =======================
-// ✅ PayPal uklonjeno (nema config sanity + nema HttpClient)
+// ✅ GraphQL (HotChocolate)
 // =======================
+builder.Services
+    .AddGraphQLServer()
+    .AddQueryType<Query>()
+    .AddFiltering()
+    .AddSorting();
 
 // =======================
 // DI
@@ -234,7 +241,7 @@ builder.Services.AddSwaggerGen(option =>
 var app = builder.Build();
 
 // =======================
-// Seed (roles + test korisnici)
+// ✅ Migracije + Seed (roles + test korisnici)
 // =======================
 using (var scope = app.Services.CreateScope())
 {
@@ -242,6 +249,10 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+    // 1) ✅ Osiguraj da DB postoji + tabele (migrations)
+    await dbContext.Database.MigrateAsync();
+
+    // 2) Seed roles + users
     string[] roles = { "Admin", "Umetnik", "Kupac" };
 
     foreach (var role in roles)
@@ -301,6 +312,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// ✅ GraphQL endpoint
+app.MapGraphQL("/graphql");
+
 app.Run();
 
 // =======================
