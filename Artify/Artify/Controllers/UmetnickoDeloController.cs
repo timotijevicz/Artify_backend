@@ -118,7 +118,7 @@ namespace Artify.Controllers
             return NoContent();
         }
 
-        [Authorize]
+        [Authorize(Roles = "Umetnik, Admin")]
         [HttpDelete("ObrisiDelo/{id}")]
         public async Task<IActionResult> DeleteArtwork(int id)
         {
