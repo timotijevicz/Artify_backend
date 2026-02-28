@@ -8,6 +8,7 @@ using Artify.Token;
 using Artify.GraphQL;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,6 @@ var builder = WebApplication.CreateBuilder(args);
 // =======================
 // Railway PORT binding (bitno za deploy)
 // =======================
-// Railway u praksi prosleđuje PORT (često 8080). Najsigurnije je da slušaš baš taj port.
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
 {
@@ -245,10 +245,16 @@ builder.Services.AddSwaggerGen(option =>
 var app = builder.Build();
 
 // =======================
+// Forwarded headers (Railway proxy)
+// =======================
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+// =======================
 // Migracije + Seed
 // =======================
-// Migracije možeš ostaviti u prod ako rade (kod tebe po logu rade).
-// Seed ostaje samo u Development.
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -305,15 +311,15 @@ using (var scope = app.Services.CreateScope())
 // =======================
 
 // Swagger uključen i u Production (da možeš da testiraš na Railway).
-// Ako hoćeš da ga gasiš kasnije: stavi uslov preko ENV npr. ENABLE_SWAGGER=true.
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Railway već terminira HTTPS, ali ovo obično ne smeta.
-// Ako primetiš probleme sa OPTIONS redirectom, možeš ga držati samo u dev.
-app.UseHttpsRedirection();
+// Railway terminira HTTPS. HTTPS redirection u produkciji može da smeta CORS preflight-u.
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
-// Ove warninge ignoriši na Railway (wwwroot možda nemaš).
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -324,7 +330,7 @@ app.UseCors("AllowFrontend");
 app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.NoContent())
    .RequireCors("AllowFrontend");
 
-// Health + root da ne dobijaš 405 u browseru
+// Health + root
 app.MapGet("/", () => Results.Ok("Artify backend is running")).RequireCors("AllowFrontend");
 app.MapGet("/health", () => Results.Ok("ok")).RequireCors("AllowFrontend");
 

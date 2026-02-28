@@ -72,7 +72,7 @@ namespace Artify.Controllers
             return Ok(rec);
         }
 
-        [Authorize(Roles = "Kupac")]
+        [Authorize(Roles = "Kupac,Admin")]
         [HttpDelete("BrisanjeRecenzije/{RecenzijaId}")]
         public async Task<IActionResult> Obrisi(int RecenzijaId)
         {
