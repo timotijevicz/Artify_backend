@@ -17,26 +17,20 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// =======================
 // Railway PORT binding
-// =======================
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
 {
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
-// =======================
 // Kestrel – HTTP/1.1
-// =======================
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ConfigureEndpointDefaults(lo => { lo.Protocols = HttpProtocols.Http1; });
 });
 
-// =======================
 // DbContext
-// =======================
 var cs = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(cs))
     throw new InvalidOperationException("DefaultConnection nije podešen.");
@@ -56,9 +50,7 @@ else
         options.UseMySql(cs, ServerVersion.AutoDetect(cs)));
 }
 
-// =======================
 // Identity
-// =======================
 builder.Services.AddIdentity<Korisnik, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -70,9 +62,7 @@ builder.Services.AddIdentity<Korisnik, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// =======================
 // Cookie redirect FIX za API
-// =======================
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Events = new CookieAuthenticationEvents
@@ -101,36 +91,25 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 // =======================
-// CORS
+// CORS (IMPORTANT: include Authorization + OPTIONS)
 // =======================
 const string CorsPolicyName = "AllowFrontend";
-
-var allowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-{
-    "https://artify.up.railway.app",
-    "http://localhost:3000",
-    "http://localhost:5173",
-};
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
     {
-        // Ovo je robustnije od WithOrigins kad platforma nekad pošalje origin sa/bez trailing slash-a itd.
-        policy.SetIsOriginAllowed(origin =>
-        {
-            if (string.IsNullOrWhiteSpace(origin)) return false;
-            return allowedOrigins.Contains(origin);
-        })
-        .WithHeaders("Authorization", "Content-Type")
-        .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-        .SetPreflightMaxAge(TimeSpan.FromHours(1));
+        policy.WithOrigins(
+                "https://artify.up.railway.app",
+                "http://localhost:3000",
+                "http://localhost:5173"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
 });
 
-// =======================
-// JWT Authentication
-// =======================
+// JWT
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -170,27 +149,21 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// =======================
-// Controllers + IgnoreCycles
-// =======================
+// Controllers
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
         o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
-// =======================
 // GraphQL
-// =======================
 builder.Services
     .AddGraphQLServer()
     .AddQueryType<Query>()
     .AddFiltering()
     .AddSorting();
 
-// =======================
 // DI
-// =======================
 builder.Services.AddScoped<IKorisnik, KorisnikRepository>();
 builder.Services.AddScoped<IFavoriti, FavoritiRepository>();
 builder.Services.AddScoped<IRecenzija, RecenzijaRepository>();
@@ -200,9 +173,7 @@ builder.Services.AddScoped<INotifikacija, NotifikacijaRepository>();
 builder.Services.AddScoped<IUmetnik, UmetnikRepository>();
 builder.Services.AddScoped<IToken, TokenService>();
 
-// =======================
 // Swagger
-// =======================
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(option =>
 {
@@ -236,42 +207,17 @@ builder.Services.AddSwaggerGen(option =>
 
 var app = builder.Build();
 
-// =======================
-// Forwarded headers
-// =======================
+// Forwarded headers (Railway proxy)
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
-// =======================
-// Migracije + Seed
-// =======================
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await dbContext.Database.MigrateAsync();
-
-    if (app.Environment.IsDevelopment())
-    {
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Korisnik>>();
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-
-        string[] roles = { "Admin", "Umetnik", "Kupac" };
-        foreach (var role in roles)
-        {
-            if (!await roleManager.RoleExistsAsync(role))
-                await roleManager.CreateAsync(new IdentityRole(role));
-        }
-    }
-}
-
-// =======================
-// Middleware redosled
-// =======================
+// Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
 
+// Railway terminira HTTPS
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -281,19 +227,17 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// ✅ CORS pre auth (bitno za preflight)
+// ✅ OBAVEZNO: CORS pre auth, bez ikakvih OPTIONS hackova
 app.UseCors(CorsPolicyName);
 
-// ✅ Auth
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Health
-app.MapGet("/", () => Results.Ok("Artify backend is running")).RequireCors(CorsPolicyName);
-app.MapGet("/health", () => Results.Ok("ok")).RequireCors(CorsPolicyName);
-
-// ✅ Forsiraj CORS na API endpointima (da ne promakne)
+// ✅ OBAVEZNO: RequireCors na controller map (da preflight ne promakne)
 app.MapControllers().RequireCors(CorsPolicyName);
 app.MapGraphQL("/graphql").RequireCors(CorsPolicyName);
+
+app.MapGet("/", () => Results.Ok("Artify backend is running")).RequireCors(CorsPolicyName);
+app.MapGet("/health", () => Results.Ok("ok")).RequireCors(CorsPolicyName);
 
 app.Run();
