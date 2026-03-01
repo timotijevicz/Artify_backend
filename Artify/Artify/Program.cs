@@ -168,6 +168,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
+                "https://artify.up.railway.app",                 // ✅ DODATO (tvoj stvarni frontend)
                 "https://artifyfrontend-production.up.railway.app",
                 "http://localhost:3000",
                 "http://localhost:5173"
