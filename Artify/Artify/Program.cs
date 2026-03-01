@@ -134,8 +134,6 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
     };
 
-  
-
     if (builder.Environment.IsDevelopment())
     {
         options.Events = new JwtBearerEvents
@@ -171,15 +169,12 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "https://artify.up.railway.app",
-                "https://artifyfrontend-production.up.railway.app",
                 "http://localhost:3000",
                 "http://localhost:5173"
             )
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .SetPreflightMaxAge(TimeSpan.FromHours(1));
-        // Ako ikad budeš slao cookies cross-site:
-        // .AllowCredentials();
+            .AllowAnyMethod();
+        // Ako ikad budeš slao cookies: .AllowCredentials();
     });
 });
 
@@ -315,9 +310,11 @@ using (var scope = app.Services.CreateScope())
 // Middleware — redosled
 // =======================
 
+// Swagger uključen i u Production (da možeš da testiraš na Railway).
 app.UseSwagger();
 app.UseSwaggerUI();
 
+// Railway terminira HTTPS. HTTPS redirection u produkciji može da smeta CORS preflight-u.
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -327,38 +324,11 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// ✅ Global CORS middleware
 app.UseCors("AllowFrontend");
 
-// ✅ Fallback: uvek dodaj CORS header za dozvoljene origine (pomaže kad error prekine pipeline)
-app.Use(async (ctx, next) =>
-{
-    var origin = ctx.Request.Headers.Origin.ToString();
-    var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "https://artify.up.railway.app",
-        "https://artifyfrontend-production.up.railway.app",
-        "http://localhost:3000",
-        "http://localhost:5173"
-    };
-
-    if (!string.IsNullOrWhiteSpace(origin) && allowed.Contains(origin))
-    {
-        ctx.Response.Headers["Access-Control-Allow-Origin"] = origin;
-        ctx.Response.Headers["Vary"] = "Origin";
-        ctx.Response.Headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type";
-        ctx.Response.Headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
-    }
-
-    // Ako je preflight, završi odmah
-    if (HttpMethods.IsOptions(ctx.Request.Method))
-    {
-        ctx.Response.StatusCode = StatusCodes.Status204NoContent;
-        return;
-    }
-
-    await next();
-});
+// Catch-all preflight handler (pomaže kad browser šalje OPTIONS)
+app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.NoContent())
+   .RequireCors("AllowFrontend");
 
 // Health + root
 app.MapGet("/", () => Results.Ok("Artify backend is running")).RequireCors("AllowFrontend");
@@ -367,9 +337,8 @@ app.MapGet("/health", () => Results.Ok("ok")).RequireCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// ✅ Forsiraj CORS na endpointima
-app.MapControllers().RequireCors("AllowFrontend");
-app.MapGraphQL("/graphql").RequireCors("AllowFrontend");
+app.MapControllers();
+app.MapGraphQL("/graphql");
 
 app.Run();
 
