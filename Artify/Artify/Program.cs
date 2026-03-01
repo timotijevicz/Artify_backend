@@ -134,6 +134,20 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
     };
 
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = ctx =>
+        {
+            Console.WriteLine("JWT FAILED: " + ctx.Exception.ToString());
+            return Task.CompletedTask;
+        },
+        OnChallenge = ctx =>
+        {
+            Console.WriteLine($"JWT CHALLENGE: {ctx.Error} | {ctx.ErrorDescription}");
+            return Task.CompletedTask;
+        }
+    };
+
     if (builder.Environment.IsDevelopment())
     {
         options.Events = new JwtBearerEvents
