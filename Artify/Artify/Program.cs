@@ -18,7 +18,7 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // =======================
-// Railway PORT binding (bitno za deploy)
+// Railway PORT binding
 // =======================
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
@@ -27,7 +27,7 @@ if (!string.IsNullOrWhiteSpace(port))
 }
 
 // =======================
-// Kestrel – forsiraj HTTP/1.1
+// Kestrel – HTTP/1.1
 // =======================
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -35,7 +35,7 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // =======================
-// DbContext (AUTO: LocalDB -> SQL Server, ostalo -> MySQL)
+// DbContext
 // =======================
 var cs = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(cs))
@@ -71,7 +71,7 @@ builder.Services.AddIdentity<Korisnik, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // =======================
-// Cookie redirect FIX za API
+// Cookie redirect FIX za API (ne lomi ništa, samo sprečava redirect)
 // =======================
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -101,7 +101,27 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 // =======================
-// JWT Authentication
+// CORS
+// =======================
+const string CorsPolicyName = "AllowFrontend";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy =>
+    {
+        policy.WithOrigins(
+                "https://artify.up.railway.app",
+                "http://localhost:3000",
+                "http://localhost:5173"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .SetPreflightMaxAge(TimeSpan.FromHours(1));
+    });
+});
+
+// =======================
+// JWT Authentication (mora da matchuje TokenService)
 // =======================
 builder.Services.AddAuthentication(options =>
 {
@@ -111,6 +131,16 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     var jwtSettings = builder.Configuration.GetSection("Jwt");
+    var key = jwtSettings["Key"];
+    var issuer = jwtSettings["Issuer"];
+    var audience = jwtSettings["Audience"];
+
+    if (string.IsNullOrWhiteSpace(key) ||
+        string.IsNullOrWhiteSpace(issuer) ||
+        string.IsNullOrWhiteSpace(audience))
+    {
+        throw new InvalidOperationException("JWT settings (Jwt:Key/Issuer/Audience) nisu podešeni. Proveri Railway variables: Jwt__Key/Jwt__Issuer/Jwt__Audience");
+    }
 
     options.IncludeErrorDetails = builder.Environment.IsDevelopment();
 
@@ -121,62 +151,34 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
 
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
+        ValidIssuer = issuer,
+        ValidAudience = audience,
 
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtSettings["Key"]!)
-        ),
-
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
         ClockSkew = TimeSpan.Zero,
 
+        // Bitno: koristi ClaimTypes.Role i ClaimTypes.NameIdentifier (ti to tako generišeš u TokenService)
         RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
     };
 
-    if (builder.Environment.IsDevelopment())
+    // privremeno (dok ne proradi) – log u Railway
+    options.Events = new JwtBearerEvents
     {
-        options.Events = new JwtBearerEvents
+        OnAuthenticationFailed = ctx =>
         {
-            OnAuthenticationFailed = ctx =>
-            {
-                Console.WriteLine("❌ JWT auth FAILED");
-                Console.WriteLine(ctx.Exception);
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = ctx =>
-            {
-                Console.WriteLine("✅ JWT token VALID");
-                return Task.CompletedTask;
-            },
-            OnChallenge = ctx =>
-            {
-                Console.WriteLine($"⚠️ JWT CHALLENGE: {ctx.Error} | {ctx.ErrorDescription}");
-                return Task.CompletedTask;
-            }
-        };
-    }
+            Console.WriteLine("❌ JWT FAILED: " + ctx.Exception.ToString());
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = ctx =>
+        {
+            Console.WriteLine("✅ JWT VALID");
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
-
-// =======================
-// CORS (dozvoli React domen)
-// =======================
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins(
-                "https://artify.up.railway.app",
-                "http://localhost:3000",
-                "http://localhost:5173"
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-        // Ako ikad budeš slao cookies: .AllowCredentials();
-    });
-});
 
 // =======================
 // Controllers + IgnoreCycles
@@ -188,7 +190,7 @@ builder.Services.AddControllers()
     });
 
 // =======================
-// GraphQL (HotChocolate)
+// GraphQL
 // =======================
 builder.Services
     .AddGraphQLServer()
@@ -275,46 +277,16 @@ using (var scope = app.Services.CreateScope())
 
         await CreateUserIfNotExists(userManager, "admin@artify.com", "Admin123!", "Admin Artify", "Admin");
         await CreateUserIfNotExists(userManager, "korisnik@artify.com", "Korisnik123!", "Obican Korisnik", "Kupac");
-
-        var umetnikUser = await CreateUserIfNotExists(
-            userManager,
-            "artist@artify.com",
-            "Artist123!",
-            "Test Umetnik",
-            "Umetnik"
-        );
-
-        if (umetnikUser != null)
-        {
-            var postoji = await dbContext.Umetnici.AnyAsync(u => u.KorisnikId == umetnikUser.Id);
-            if (!postoji)
-            {
-                dbContext.Umetnici.Add(new Umetnik
-                {
-                    KorisnikId = umetnikUser.Id,
-                    Biografija = "Test umetnik za razvoj.",
-                    Tehnika = "Digital art",
-                    Stil = "Modern",
-                    Specijalizacija = "Ilustracije",
-                    IsApproved = true,
-                    IsAvailable = true
-                });
-
-                await dbContext.SaveChangesAsync();
-            }
-        }
     }
 }
 
 // =======================
-// Middleware — redosled
+// Middleware redosled
 // =======================
-
-// Swagger uključen i u Production (da možeš da testiraš na Railway).
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Railway terminira HTTPS. HTTPS redirection u produkciji može da smeta CORS preflight-u.
+// Railway terminira HTTPS, ne forsiraj u prod
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -324,18 +296,14 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseCors("AllowFrontend");
-
-// Catch-all preflight handler (pomaže kad browser šalje OPTIONS)
-app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.NoContent())
-   .RequireCors("AllowFrontend");
-
-// Health + root
-app.MapGet("/", () => Results.Ok("Artify backend is running")).RequireCors("AllowFrontend");
-app.MapGet("/health", () => Results.Ok("ok")).RequireCors("AllowFrontend");
+// CORS pre auth
+app.UseCors(CorsPolicyName);
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/", () => Results.Ok("Artify backend is running")).RequireCors(CorsPolicyName);
+app.MapGet("/health", () => Results.Ok("ok")).RequireCors(CorsPolicyName);
 
 app.MapControllers();
 app.MapGraphQL("/graphql");
@@ -343,7 +311,7 @@ app.MapGraphQL("/graphql");
 app.Run();
 
 // =======================
-// Helper (seed samo za dev)
+// Helper
 // =======================
 static async Task<Korisnik?> CreateUserIfNotExists(
     UserManager<Korisnik> userManager,
