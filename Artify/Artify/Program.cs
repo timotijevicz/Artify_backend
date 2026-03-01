@@ -168,14 +168,17 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
-                "https://artify.up.railway.app",                 // ✅ DODATO (tvoj stvarni frontend)
+                "https://artify.up.railway.app",                  // ✅ TVOJ STVARNI FRONTEND (iz console greške)
                 "https://artifyfrontend-production.up.railway.app",
                 "http://localhost:3000",
                 "http://localhost:5173"
             )
             .AllowAnyHeader()
-            .AllowAnyMethod();
-        // Ako ikad budeš slao cookies: .AllowCredentials();
+            .AllowAnyMethod()
+            .SetPreflightMaxAge(TimeSpan.FromHours(1));          // ✅ nije obavezno, ali smanjuje preflight spam
+
+        // Ako ikad budeš slao cookies cross-site:
+        // .AllowCredentials();
     });
 });
 
@@ -325,6 +328,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// ✅ Global CORS middleware
 app.UseCors("AllowFrontend");
 
 // Catch-all preflight handler (pomaže kad browser šalje OPTIONS)
@@ -338,8 +342,9 @@ app.MapGet("/health", () => Results.Ok("ok")).RequireCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
-app.MapGraphQL("/graphql");
+// ✅ Forsiraj CORS i na endpoint mapiranju (da ne “promakne” za neke rute)
+app.MapControllers().RequireCors("AllowFrontend");
+app.MapGraphQL("/graphql").RequireCors("AllowFrontend");
 
 app.Run();
 
