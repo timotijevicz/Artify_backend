@@ -71,7 +71,7 @@ builder.Services.AddIdentity<Korisnik, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // =======================
-// Cookie redirect FIX za API (ne lomi ništa, samo sprečava redirect)
+// Cookie redirect FIX za API
 // =======================
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -105,23 +105,31 @@ builder.Services.ConfigureApplicationCookie(options =>
 // =======================
 const string CorsPolicyName = "AllowFrontend";
 
+var allowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "https://artify.up.railway.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+};
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
     {
-        policy.WithOrigins(
-                "https://artify.up.railway.app",
-                "http://localhost:3000",
-                "http://localhost:5173"
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .SetPreflightMaxAge(TimeSpan.FromHours(1));
+        // Ovo je robustnije od WithOrigins kad platforma nekad pošalje origin sa/bez trailing slash-a itd.
+        policy.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+            return allowedOrigins.Contains(origin);
+        })
+        .WithHeaders("Authorization", "Content-Type")
+        .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
 });
 
 // =======================
-// JWT Authentication (mora da matchuje TokenService)
+// JWT Authentication
 // =======================
 builder.Services.AddAuthentication(options =>
 {
@@ -130,19 +138,17 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    var jwtSettings = builder.Configuration.GetSection("Jwt");
-    var key = jwtSettings["Key"];
-    var issuer = jwtSettings["Issuer"];
-    var audience = jwtSettings["Audience"];
+    var jwt = builder.Configuration.GetSection("Jwt");
+    var key = jwt["Key"];
+    var issuer = jwt["Issuer"];
+    var audience = jwt["Audience"];
 
     if (string.IsNullOrWhiteSpace(key) ||
         string.IsNullOrWhiteSpace(issuer) ||
         string.IsNullOrWhiteSpace(audience))
     {
-        throw new InvalidOperationException("JWT settings (Jwt:Key/Issuer/Audience) nisu podešeni. Proveri Railway variables: Jwt__Key/Jwt__Issuer/Jwt__Audience");
+        throw new InvalidOperationException("JWT settings (Jwt:Key/Issuer/Audience) nisu podešeni.");
     }
-
-    options.IncludeErrorDetails = builder.Environment.IsDevelopment();
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -153,28 +159,12 @@ builder.Services.AddAuthentication(options =>
 
         ValidIssuer = issuer,
         ValidAudience = audience,
-
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+
         ClockSkew = TimeSpan.Zero,
 
-        // Bitno: koristi ClaimTypes.Role i ClaimTypes.NameIdentifier (ti to tako generišeš u TokenService)
         RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
         NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
-    };
-
-    // privremeno (dok ne proradi) – log u Railway
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = ctx =>
-        {
-            Console.WriteLine("❌ JWT FAILED: " + ctx.Exception.ToString());
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = ctx =>
-        {
-            Console.WriteLine("✅ JWT VALID");
-            return Task.CompletedTask;
-        }
     };
 });
 
@@ -247,7 +237,7 @@ builder.Services.AddSwaggerGen(option =>
 var app = builder.Build();
 
 // =======================
-// Forwarded headers (Railway proxy)
+// Forwarded headers
 // =======================
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
@@ -268,15 +258,11 @@ using (var scope = app.Services.CreateScope())
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
         string[] roles = { "Admin", "Umetnik", "Kupac" };
-
         foreach (var role in roles)
         {
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole(role));
         }
-
-        await CreateUserIfNotExists(userManager, "admin@artify.com", "Admin123!", "Admin Artify", "Admin");
-        await CreateUserIfNotExists(userManager, "korisnik@artify.com", "Korisnik123!", "Obican Korisnik", "Kupac");
     }
 }
 
@@ -286,7 +272,6 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Railway terminira HTTPS, ne forsiraj u prod
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -296,45 +281,19 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// CORS pre auth
+// ✅ CORS pre auth (bitno za preflight)
 app.UseCors(CorsPolicyName);
 
+// ✅ Auth
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Health
 app.MapGet("/", () => Results.Ok("Artify backend is running")).RequireCors(CorsPolicyName);
 app.MapGet("/health", () => Results.Ok("ok")).RequireCors(CorsPolicyName);
 
-app.MapControllers();
-app.MapGraphQL("/graphql");
+// ✅ Forsiraj CORS na API endpointima (da ne promakne)
+app.MapControllers().RequireCors(CorsPolicyName);
+app.MapGraphQL("/graphql").RequireCors(CorsPolicyName);
 
 app.Run();
-
-// =======================
-// Helper
-// =======================
-static async Task<Korisnik?> CreateUserIfNotExists(
-    UserManager<Korisnik> userManager,
-    string email,
-    string password,
-    string imeIPrezime,
-    string role
-)
-{
-    var user = await userManager.FindByEmailAsync(email);
-    if (user != null) return user;
-
-    user = new Korisnik
-    {
-        Email = email,
-        UserName = email,
-        ImeIPrezime = imeIPrezime,
-        DatumRegistracije = DateTime.UtcNow
-    };
-
-    var result = await userManager.CreateAsync(user, password);
-    if (!result.Succeeded) return null;
-
-    await userManager.AddToRoleAsync(user, role);
-    return user;
-}
